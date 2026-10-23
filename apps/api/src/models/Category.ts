@@ -58,7 +58,7 @@ const CategorySchema = new Schema<ICategory>(
   {
     timestamps: true,
     toJSON: {
-      transform: (doc, ret: Record<string, any>) => {
+      transform: (_doc: any, ret: Record<string, any>) => {
         ret.id = ret._id ? ret._id.toString() : undefined;
         ret.userId = ret.userId ? ret.userId.toString() : undefined;
         delete ret._id;

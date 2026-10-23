@@ -13,7 +13,7 @@
     "dev:web": "npm run dev --workspace=@finora/web",
     "build": "npm run build --workspace=@finora/shared && npm run build --workspace=@finora/api && npm run build --workspace=@finora/web",
     "build:shared": "npm run build --workspace=@finora/shared",
-    "build:api": "npm run build --workspace=@finora/api",
+    "build:api": "npm run build --workspace=@finora/shared && npm run build --workspace=@finora/api",
     "build:web": "npm run build --workspace=@finora/web",
     "typecheck": "npm run typecheck --workspace=@finora/shared && npm run typecheck --workspace=@finora/api && npm run typecheck --workspace=@finora/web",
     "lint": "npm run lint --workspaces --if-present",

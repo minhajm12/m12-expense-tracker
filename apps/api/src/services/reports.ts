@@ -218,16 +218,16 @@ export async function getFinancialReport(
     }).select('_id'),
   ]);
 
-  const wonInvestmentIdSet = new Set(wonInvestments.map((inv) => inv._id.toString()));
+  const wonInvestmentIdSet = new Set(wonInvestments.map((inv: { _id: mongoose.Types.ObjectId }) => inv._id.toString()));
 
   const wonContributions =
     wonInvestmentIdSet.size > 0
       ? await InvestmentContribution.find({
           userId,
-          investmentId: { $in: Array.from(wonInvestments.map((inv) => inv._id)) },
+          investmentId: { $in: Array.from(wonInvestments.map((inv: { _id: mongoose.Types.ObjectId }) => inv._id)) },
         }).select('_id')
       : [];
-  const wonContributionIdSet = new Set(wonContributions.map((c) => c._id.toString()));
+  const wonContributionIdSet = new Set(wonContributions.map((c: { _id: mongoose.Types.ObjectId }) => c._id.toString()));
 
   const isWonChitInvestmentTx = (tx: ITransaction) => {
     if (tx.type !== TransactionType.INVESTMENT) return false;
@@ -239,10 +239,10 @@ export async function getFinancialReport(
 
   // Authoritative active reporting transactions:
   // Won external chits are excluded from active investment calculations, breakdowns, and ledgers in Main Reports
-  const reportTransactions = transactions.filter((tx) => !isWonChitInvestmentTx(tx));
+  const reportTransactions = transactions.filter((tx: ITransaction) => !isWonChitInvestmentTx(tx));
 
-  const accountMap = new Map(bankAccounts.map((a) => [a._id.toString(), a.accountName]));
-  const cardMap = new Map(creditCards.map((c) => [c._id.toString(), c.cardNickname]));
+  const accountMap = new Map(bankAccounts.map((a: { _id: mongoose.Types.ObjectId; accountName: string }) => [a._id.toString(), a.accountName]));
+  const cardMap = new Map(creditCards.map((c: { _id: mongoose.Types.ObjectId; cardNickname: string }) => [c._id.toString(), c.cardNickname]));
 
   let totalIncomeCents = 0;
   let totalExpenseCents = 0;
@@ -447,7 +447,7 @@ export async function getFinancialReport(
   const monthlyInvestmentContributions = Array.from(monthMap.entries()).map(([month, val]) => ({
     month,
     amount: fromCents(val.investmentCents || 0),
-    count: investmentTransactions.filter((it) => {
+    count: investmentTransactions.filter((it: InvestmentReportData['transactions'][number]) => {
       const itMonth = new Date(it.date).toLocaleDateString('en-US', {
         month: 'short',
         year: 'numeric',

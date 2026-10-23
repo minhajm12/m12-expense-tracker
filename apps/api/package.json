@@ -5,9 +5,9 @@
   "main": "./dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "npm run build --workspace=@finora/shared && tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "npm run build --workspace=@finora/shared && tsc --noEmit",
     "seed:categories": "tsx src/scripts/seed-categories.ts",
     "test": "vitest run",
     "test:watch": "vitest"
