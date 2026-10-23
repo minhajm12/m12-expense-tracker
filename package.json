@@ -1,0 +1,26 @@
+{
+  "name": "finora",
+  "version": "1.0.0",
+  "description": "Finora - Enterprise-grade Personal Finance & Accounting Platform",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"API,WEB\" -c \"cyan.bold,green.bold\" \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev --workspace=@finora/api",
+    "dev:web": "npm run dev --workspace=@finora/web",
+    "build": "npm run build --workspace=@finora/shared && npm run build --workspace=@finora/api && npm run build --workspace=@finora/web",
+    "build:shared": "npm run build --workspace=@finora/shared",
+    "build:api": "npm run build --workspace=@finora/api",
+    "build:web": "npm run build --workspace=@finora/web",
+    "typecheck": "npm run typecheck --workspace=@finora/shared && npm run typecheck --workspace=@finora/api && npm run typecheck --workspace=@finora/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "seed:categories": "npm run seed:categories --workspace=@finora/api",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
