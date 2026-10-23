@@ -120,7 +120,7 @@ export const connectDatabase = async (uri?: string): Promise<boolean> => {
       await mongoose.connect(connectionString, {
         serverSelectionTimeoutMS: 5000,
         autoIndex: env.NODE_ENV !== 'production',
-        dbName: 'finora',
+        dbName: process.env.MONGODB_DB_NAME || 'finora',
         bufferCommands: false,
       });
 

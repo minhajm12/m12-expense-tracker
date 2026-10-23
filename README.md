@@ -82,8 +82,8 @@ Verify your `.env` contains:
 ```env
 PORT=5000
 NODE_ENV=development
-MONGODB_URI=mongodb://127.0.0.1:27017/finora_db
-JWT_SECRET=finora_super_secure_jwt_secret_key_at_least_32_chars_long!
+MONGODB_URI=mongodb://127.0.0.1:27017/m12_expense_tracker_db
+JWT_SECRET=m12_expense_tracker_secure_jwt_secret_key_at_least_32_chars_long!
 JWT_EXPIRES_IN=7d
 CORS_ORIGIN=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:5000

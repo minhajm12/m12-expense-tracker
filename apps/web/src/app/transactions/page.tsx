@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -17,6 +17,9 @@ import {
   Filter,
   ArrowUpRight,
   ArrowDownLeft,
+  ArrowRight,
+  CheckCircle2,
+  Users,
   RefreshCw,
   Trash2,
   Copy,
@@ -46,16 +49,67 @@ import { emitDataChange, useDataSync } from '@/lib/data-sync';
 
 export default function TransactionsPage() {
   const { user, isAuthenticated } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
   const [categories, setCategories] = useState<TransactionCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Helper to extract year & month in Asia/Kolkata
+  const getKolkataDateParts = () => {
+    const now = new Date();
+    const kolkataStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+    }).format(now);
+    const [y, m] = kolkataStr.split('-');
+    return { year: y, month: m };
+  };
+
+  const getAvailableYears = () => {
+    const { year } = getKolkataDateParts();
+    const currentY = parseInt(year, 10);
+    const years = [{ value: 'all', label: 'All Years' }];
+    for (let y = currentY + 1; y >= currentY - 5; y--) {
+      years.push({
+        value: String(y),
+        label: y === currentY ? `${y} (Current Year)` : String(y),
+      });
+    }
+    return years;
+  };
+
+  const MONTHS = [
+    { value: 'all', label: 'All Months' },
+    { value: '01', label: '01 - January' },
+    { value: '02', label: '02 - February' },
+    { value: '03', label: '03 - March' },
+    { value: '04', label: '04 - April' },
+    { value: '05', label: '05 - May' },
+    { value: '06', label: '06 - June' },
+    { value: '07', label: '07 - July' },
+    { value: '08', label: '08 - August' },
+    { value: '09', label: '09 - September' },
+    { value: '10', label: '10 - October' },
+    { value: '11', label: '11 - November' },
+    { value: '12', label: '12 - December' },
+  ];
+
+  // Filters & Pagination
+  const [yearFilter, setYearFilter] = useState<string>(() => getKolkataDateParts().year);
+  const [monthFilter, setMonthFilter] = useState<string>(() => getKolkataDateParts().month);
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [accountFilter, setAccountFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Cancellation and in-flight request tracking
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef<number>(0);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -98,18 +152,48 @@ export default function TransactionsPage() {
 
   const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (targetPage = 1, append = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const currentRequestId = ++requestIdRef.current;
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      let queryParams = `?search=${encodeURIComponent(searchTerm)}`;
+      let queryParams = `?unified=true&search=${encodeURIComponent(searchTerm)}&page=${targetPage}&limit=20`;
+      if (yearFilter !== 'all') {
+        queryParams += `&year=${yearFilter}`;
+        if (monthFilter !== 'all') {
+          queryParams += `&month=${monthFilter}`;
+        }
+      }
       if (typeFilter !== 'all') queryParams += `&type=${typeFilter}`;
-      if (accountFilter !== 'all') queryParams += `&accountId=${accountFilter}`;
+      if (paymentFilter !== 'all') queryParams += `&payment=${encodeURIComponent(paymentFilter)}`;
 
       const [txRes, accRes, cardRes, catRes] = await Promise.all([
-        fetch(`${getApiUrl()}/api/v1/transactions${queryParams}`, { credentials: 'include' }),
-        fetch(`${getApiUrl()}/api/v1/accounts`, { credentials: 'include' }),
-        fetch(`${getApiUrl()}/api/v1/credit-cards`, { credentials: 'include' }),
-        fetch(`${getApiUrl()}/api/v1/categories`, { credentials: 'include' }),
+        fetch(`${getApiUrl()}/api/v1/transactions${queryParams}`, {
+          credentials: 'include',
+          signal: controller.signal,
+        }),
+        fetch(`${getApiUrl()}/api/v1/accounts`, {
+          credentials: 'include',
+          signal: controller.signal,
+        }),
+        fetch(`${getApiUrl()}/api/v1/credit-cards`, {
+          credentials: 'include',
+          signal: controller.signal,
+        }),
+        fetch(`${getApiUrl()}/api/v1/categories`, {
+          credentials: 'include',
+          signal: controller.signal,
+        }),
       ]);
 
       const [txJson, accJson, cardJson, catJson] = await Promise.all([
@@ -119,7 +203,19 @@ export default function TransactionsPage() {
         catRes.json(),
       ]);
 
-      if (txJson.success) setTransactions(txJson.data || []);
+      // Check for stale response
+      if (requestIdRef.current !== currentRequestId) return;
+
+      if (txJson.success) {
+        if (append) {
+          setTransactions((prev) => [...prev, ...(txJson.data || [])]);
+        } else {
+          setTransactions(txJson.data || []);
+        }
+        setTotalCount(txJson.pagination?.total || 0);
+        setHasMore(Boolean(txJson.pagination?.hasMore));
+        setPage(targetPage);
+      }
       if (accJson.success) {
         setAccounts(accJson.data || []);
         if (accJson.data?.length > 0 && !txAccountId) {
@@ -142,22 +238,37 @@ export default function TransactionsPage() {
           setTxCategory(catJson.data[0].name);
         }
       }
-    } catch {
+    } catch (err: any) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // Stale in-flight request cancelled; ignore
+        return;
+      }
       toast.error('Network error loading financial data');
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === currentRequestId) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
+  };
+
+  const handleLoadMore = () => {
+    if (loadingMore || !hasMore) return;
+    fetchData(page + 1, true);
   };
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchData();
+      setPage(1);
+      fetchData(1, false);
     } else {
       setLoading(false);
     }
-  }, [isAuthenticated, typeFilter, accountFilter]);
+  }, [isAuthenticated, yearFilter, monthFilter, typeFilter, paymentFilter]);
 
-  useDataSync(fetchData, ['transactions']);
+  useDataSync(() => {
+    fetchData(1, false);
+  }, ['transactions', 'all']);
 
   const handlePaymentMethodChange = (method: PaymentMethod, isEdit = false) => {
     if (isEdit) {
@@ -463,7 +574,7 @@ export default function TransactionsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={fetchData} variant="outline" size="sm" className="gap-2">
+          <Button onClick={() => fetchData(1, false)} variant="outline" size="sm" className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -494,32 +605,97 @@ export default function TransactionsPage() {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Year Filter */}
+              <select
+                value={yearFilter}
+                onChange={(e) => {
+                  const newYear = e.target.value;
+                  setYearFilter(newYear);
+                  if (newYear === 'all') {
+                    setMonthFilter('all');
+                  }
+                }}
+                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                title="Filter by year"
+              >
+                {getAvailableYears().map((y) => (
+                  <option key={y.value} value={y.value}>
+                    {y.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Month Filter */}
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                disabled={yearFilter === 'all'}
+                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Filter by month"
+              >
+                {MONTHS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Type Filter */}
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                title="Filter by transaction type"
               >
                 <option value="all">All Types</option>
                 <option value="income">Income (+)</option>
                 <option value="expense">Expense (-)</option>
                 <option value="investment">Investment (↗)</option>
                 <option value="transfer">Transfers</option>
+                <option value="lending">Lending (Hand Loans Out)</option>
+                <option value="borrowing">Borrowing (Hand Loans In)</option>
                 <option value="credit_card_payment">Card Repayments</option>
                 <option value="credit_card_refund">Card Refunds</option>
               </select>
 
+              {/* Payment Filter */}
               <select
-                value={accountFilter}
-                onChange={(e) => setAccountFilter(e.target.value)}
-                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                title="Filter by payment source"
               >
-                <option value="all">All Accounts</option>
-                {accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.accountName}
-                  </option>
-                ))}
+                <option value="all">All Payments</option>
+
+                <optgroup label="Payment Methods">
+                  <option value="method:upi">UPI</option>
+                  <option value="method:cash">Cash in Hand</option>
+                  <option value="method:net_banking">Net Banking</option>
+                  <option value="method:debit_card">Debit Card</option>
+                  <option value="method:credit_card">Credit Card</option>
+                  <option value="method:bank_transfer">Bank Transfer</option>
+                </optgroup>
+
+                {accounts.length > 0 && (
+                  <optgroup label="Bank Accounts">
+                    {accounts.map((acc) => (
+                      <option key={acc.id} value={`account:${acc.id}`}>
+                        {acc.accountName} {acc.bankName ? `(${acc.bankName})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+
+                {creditCards.length > 0 && (
+                  <optgroup label="Credit Cards">
+                    {creditCards.map((card) => (
+                      <option key={card.id} value={`card:${card.id}`}>
+                        {card.cardNickname} {card.lastFourDigits ? `(•••• ${card.lastFourDigits})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
           </div>
@@ -531,7 +707,9 @@ export default function TransactionsPage() {
         <CardHeader className="py-4 px-6 border-b border-border bg-muted/20">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">Ledger Entries</CardTitle>
-            <Badge variant="outline">{transactions.length} records</Badge>
+            <Badge variant="outline">
+              Showing {transactions.length} of {totalCount} records
+            </Badge>
           </div>
         </CardHeader>
 
@@ -568,6 +746,125 @@ export default function TransactionsPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {transactions.map((tx) => {
+                    // Check if this is a unified Lending & Borrowing record
+                    if (tx.isLendingBorrowing) {
+                      const isLending = tx.recordType === 'lending';
+                      const isBorrowing = tx.recordType === 'borrowing';
+                      const isIncoming = tx.type === 'income' || isBorrowing;
+
+                      return (
+                        <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-3.5">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                                  isLending
+                                    ? 'bg-amber-500/10 text-amber-500'
+                                    : isBorrowing
+                                    ? 'bg-blue-500/10 text-blue-500'
+                                    : isIncoming
+                                    ? 'bg-[#05A100]/10 text-[#05A100]'
+                                    : 'bg-[#CC0000]/10 text-[#CC0000]'
+                                }`}
+                              >
+                                {isLending ? (
+                                  <Users className="h-4 w-4" />
+                                ) : isBorrowing ? (
+                                  <Coins className="h-4 w-4" />
+                                ) : isIncoming ? (
+                                  <CheckCircle2 className="h-4 w-4" />
+                                ) : (
+                                  <ArrowUpRight className="h-4 w-4" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground leading-tight">{tx.title}</p>
+                                <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                                  <span>{new Date(tx.date).toLocaleDateString()}</span>
+                                  {tx.merchantOrRecipient && (
+                                    <>
+                                      <span>•</span>
+                                      <span>{tx.merchantOrRecipient}</span>
+                                    </>
+                                  )}
+                                  <span>•</span>
+                                  <span className="italic font-medium text-[11px] text-amber-600 dark:text-amber-400">
+                                    Lending &amp; Borrowing
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-3.5">
+                            <Badge
+                              variant="secondary"
+                              className={`text-xs ${
+                                isLending
+                                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                  : isBorrowing
+                                  ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                  : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              }`}
+                            >
+                              {tx.category}
+                            </Badge>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span className="capitalize text-xs font-medium text-foreground">
+                              {tx.paymentMethod ? tx.paymentMethod.replace('_', ' ') : 'Cash'}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5">
+                            <Badge variant="outline" className="capitalize text-[11px]">
+                              offline
+                            </Badge>
+                          </td>
+
+                          <td className="p-3.5 text-xs text-muted-foreground font-medium">
+                            {tx.paymentMethod === 'cash'
+                              ? 'Cash in Hand'
+                              : tx.accountId
+                              ? accounts.find((a) => a.id === tx.accountId)?.accountName || tx.bankAccountName || 'Bank Account'
+                              : tx.bankAccountName || 'UPI / Bank'}
+                          </td>
+
+                          <td className="p-3.5 text-right font-bold text-sm">
+                            <span
+                              className={
+                                isIncoming
+                                  ? isBorrowing
+                                    ? 'text-blue-500'
+                                    : 'text-[#05A100]'
+                                  : isLending
+                                  ? 'text-amber-500'
+                                  : 'text-[#CC0000]'
+                              }
+                            >
+                              {isIncoming ? '+' : '-'}
+                              {formatCurrency(tx.amount, user?.currency || 'INR')}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5 text-right">
+                            <Link href="/lending-borrowing">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-xs font-medium gap-1 text-primary hover:text-primary hover:bg-primary/10"
+                                title="Manage in Lending & Borrowing Module"
+                              >
+                                <span>View Details</span>
+                                <ArrowRight className="h-3 w-3" />
+                              </Button>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     const isIncome = tx.type === TransactionType.INCOME;
                     const isExpense = tx.type === TransactionType.EXPENSE;
                     const isTransfer = tx.type === TransactionType.TRANSFER;
@@ -696,6 +993,32 @@ export default function TransactionsPage() {
               </table>
             </div>
           )}
+
+          {/* Lazy Loading / Server-side Pagination Controls */}
+          {hasMore && (
+            <div className="p-4 border-t border-border flex justify-center bg-card">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="gap-2 font-medium text-xs rounded-xl"
+              >
+                {loadingMore && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                <span>
+                  {loadingMore
+                    ? 'Loading More...'
+                    : `Load More Transactions (${transactions.length} of ${totalCount})`}
+                </span>
+              </Button>
+            </div>
+          )}
+
+          {!hasMore && transactions.length > 0 && (
+            <div className="py-3 px-4 border-t border-border/60 text-center text-xs text-muted-foreground bg-muted/10">
+              Showing all {totalCount} records
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -703,7 +1026,7 @@ export default function TransactionsPage() {
       <RecordTransactionModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSuccess={fetchData}
+        onSuccess={() => fetchData(1, false)}
       />
 
       {/* Edit Transaction Modal */}

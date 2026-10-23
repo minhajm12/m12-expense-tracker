@@ -1,6 +1,6 @@
-# Finora Production Deployment & Operations Guide
+# M12 Expense Tracker — Production Deployment & Operations Guide
 
-This guide details the step-by-step production deployment procedure for **Finora**, covering MongoDB Atlas provisioning, Express REST API hosting, Next.js frontend hosting on Vercel, and the end-to-end security verification checklist.
+This guide details the step-by-step production deployment procedure for **M12 Expense Tracker**, covering MongoDB Atlas provisioning, Express REST API hosting, Next.js frontend hosting on Vercel, and the end-to-end security verification checklist.
 
 ---
 
@@ -29,11 +29,11 @@ This guide details the step-by-step production deployment procedure for **Finora
 
 ## 1. MongoDB Atlas Setup Guide
 
-Finora requires persistent, high-availability document storage with atomic multi-document transaction support.
+M12 Expense Tracker requires persistent, high-availability document storage with atomic multi-document transaction support.
 
 ### Step 1: Create a Cluster
 1. Sign in to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
-2. Create a new project named **Finora**.
+2. Create a new project (e.g. named **M12 Expense Tracker** or keep existing).
 3. Deploy a new Database Cluster:
    - **Tier**: `M0 Free` for hobby/staging, or `M10+` for production with automated point-in-time restores.
    - **Cloud Provider & Region**: Choose a region closest to your application hosting (e.g. AWS `ap-south-1` Mumbai or `us-east-1` N. Virginia).
@@ -42,9 +42,9 @@ Finora requires persistent, high-availability document storage with atomic multi
 1. Navigate to **Security** > **Database Access**.
 2. Click **Add New Database User**.
 3. Select **Password Authentication**.
-4. Set **Username**: e.g. `finora_prod_user`.
+4. Set **Username**: e.g. `m12_prod_user`.
 5. Generate a cryptographically secure password (save it safely).
-6. Under **Database User Privileges**, select **Built-in Role**: `Read and write to any database` (or restrict to `finora` database).
+6. Under **Database User Privileges**, select **Built-in Role**: `Read and write to any database` (or restrict to your application database name, e.g. `finora` for existing production migrations, or `m12_expense_tracker_db`).
 7. Click **Add User**.
 
 ### Step 3: Configure Network Access (IP Whitelist)
@@ -60,9 +60,10 @@ Finora requires persistent, high-availability document storage with atomic multi
 2. Select **Drivers** (Node.js version 5.5 or later).
 3. Copy the SRV connection URI:
    ```
-   mongodb+srv://finora_prod_user:<password>@cluster0.abcde.mongodb.net/finora?retryWrites=true&w=majority&appName=FinoraCluster
+   mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/finora?retryWrites=true&w=majority
    ```
-4. Replace `<password>` with your database user password and specify the `/finora` database name.
+4. Replace `<username>` and `<password>` with your database user credentials.
+   > **Note on Database Name**: For existing production deployments where user data and transaction history are stored under database `finora`, keep `/finora` or set `MONGODB_DB_NAME=finora` so no existing records are lost. For fresh setups, you can specify `/m12_expense_tracker_db`.
 
 ---
 
@@ -82,7 +83,7 @@ Suitable for platforms like **Render**, **Railway**, **Fly.io**, or **AWS ECS/EC
    - `MONGODB_URI`: your MongoDB Atlas connection string
    - `JWT_SECRET`: a 64-character random string (`openssl rand -base64 32`)
    - `JWT_EXPIRES_IN`: `7d`
-   - `CORS_ORIGIN`: `https://finora.vercel.app` (your frontend domain)
+   - `CORS_ORIGIN`: `https://m12-expense-tracker.vercel.app` (your frontend domain)
 4. Health check path: `/api/health`.
 
 #### Deploying on Railway:
@@ -94,7 +95,7 @@ Suitable for platforms like **Render**, **Railway**, **Fly.io**, or **AWS ECS/EC
 4. Add environment variables matching `apps/api/.env.production.example`.
 
 ### Option B: Serverless on Vercel
-Finora API includes `apps/api/vercel.json` and `apps/api/api/index.ts` for native Vercel serverless functions.
+M12 Expense Tracker API includes `apps/api/vercel.json` and `apps/api/api/index.ts` for native Vercel serverless functions.
 1. In Vercel, import your repository as a new project.
 2. Set **Root Directory** to `apps/api`.
 3. Configure the environment variables (`MONGODB_URI`, `JWT_SECRET`, `CORS_ORIGIN`).
@@ -112,14 +113,14 @@ Finora API includes `apps/api/vercel.json` and `apps/api/api/index.ts` for nativ
    - **Build Command**: `npm run build --workspace=@finora/shared && next build`
    - **Output Directory**: `.next`
 4. Add Environment Variable:
-   - `NEXT_PUBLIC_API_URL`: URL of your deployed Express API (e.g. `https://finora-api.onrender.com` without trailing slash).
+   - `NEXT_PUBLIC_API_URL`: URL of your deployed Express API (e.g. `https://m12-api.onrender.com` without trailing slash).
 5. Click **Deploy**.
 
 ---
 
 ## 4. Production Security & Audit Verification Checklist
 
-Finora incorporates enterprise-level financial and application safeguards:
+M12 Expense Tracker incorporates enterprise-level financial and application safeguards:
 
 | Security Domain | Implementation | Verification Method |
 |---|---|---|

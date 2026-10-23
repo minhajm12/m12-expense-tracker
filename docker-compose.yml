@@ -3,14 +3,14 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:7.0
-    container_name: finora-mongodb
+    container_name: m12-mongodb
     restart: always
     ports:
       - '27017:27017'
     environment:
-      MONGO_INITDB_ROOT_USERNAME: finora_admin
-      MONGO_INITDB_ROOT_PASSWORD: finora_secure_password
-      MONGO_INITDB_DATABASE: finora
+      MONGO_INITDB_ROOT_USERNAME: m12_admin
+      MONGO_INITDB_ROOT_PASSWORD: m12_secure_password
+      MONGO_INITDB_DATABASE: m12_expense_tracker
     volumes:
       - mongodb_data:/data/db
 
@@ -18,15 +18,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: finora-api
+    container_name: m12-api
     restart: always
     ports:
       - '5000:5000'
     environment:
       NODE_ENV: production
       PORT: 5000
-      MONGODB_URI: mongodb://finora_admin:finora_secure_password@mongodb:27017/finora?authSource=admin
-      JWT_SECRET: ${JWT_SECRET:-super_secret_finora_production_jwt_key_at_least_32_chars}
+      MONGODB_URI: mongodb://m12_admin:m12_secure_password@mongodb:27017/m12_expense_tracker?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-super_secret_m12_production_jwt_key_at_least_32_chars}
       JWT_EXPIRES_IN: 7d
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     depends_on:

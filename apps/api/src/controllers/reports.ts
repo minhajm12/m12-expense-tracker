@@ -77,7 +77,7 @@ export const exportTransactionsCsv = async (
     const csvContent = generateTransactionsCsv(transactions);
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="finora-transactions-export.csv"');
+    res.setHeader('Content-Disposition', 'attachment; filename="m12-expense-tracker-transactions-export.csv"');
     res.status(200).send(csvContent);
   } catch (err) {
     next(err);

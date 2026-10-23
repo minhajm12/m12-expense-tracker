@@ -1,7 +1,7 @@
 {
-  "name": "finora",
+  "name": "m12_expense_tracker",
   "version": "1.0.0",
-  "description": "Finora - Enterprise-grade Personal Finance & Accounting Platform",
+  "description": "M12 Expense Tracker — Enterprise-grade Personal Finance & Accounting Platform",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -22,5 +22,8 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "resend": "^6.34.1"
   }
 }

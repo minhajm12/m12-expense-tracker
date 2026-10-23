@@ -265,6 +265,7 @@ export const updateLendingBorrowing = async (req: Request, res: Response): Promi
 
   const oldBankAccountId = record.bankAccountId;
   const oldPaymentMethod = record.paymentMethod;
+  const oldIsHistorical = Boolean(record.isHistorical);
 
   if (validated.personName !== undefined) record.personName = validated.personName;
   if (validated.phoneNumber !== undefined) record.phoneNumber = validated.phoneNumber;
@@ -276,6 +277,9 @@ export const updateLendingBorrowing = async (req: Request, res: Response): Promi
 
   if (validated.paymentMethod !== undefined) {
     record.paymentMethod = validated.paymentMethod;
+    if (validated.paymentMethod === 'cash') {
+      record.bankAccountId = undefined;
+    }
   }
   if (validated.bankAccountId !== undefined) {
     record.bankAccountId = validated.bankAccountId ? new mongoose.Types.ObjectId(validated.bankAccountId) : undefined;
@@ -310,19 +314,23 @@ export const updateLendingBorrowing = async (req: Request, res: Response): Promi
 
   await record.save();
 
-  // Recalculate balances
+  // Recalculate balances atomically for affected bank accounts and cash in hand
   const accountsToRecalc = new Set<string>();
-  if (oldPaymentMethod === 'upi' && oldBankAccountId) {
+  if (oldBankAccountId) {
     accountsToRecalc.add(oldBankAccountId.toString());
   }
-  if (record.paymentMethod === 'upi' && record.bankAccountId) {
+  if (record.bankAccountId) {
     accountsToRecalc.add(record.bankAccountId.toString());
   }
   for (const accId of accountsToRecalc) {
     await recalculateAccountBalance(accId, userId);
   }
 
-  if (oldPaymentMethod === 'cash' || record.paymentMethod === 'cash') {
+  if (
+    oldPaymentMethod === 'cash' ||
+    record.paymentMethod === 'cash' ||
+    oldIsHistorical !== Boolean(record.isHistorical)
+  ) {
     await calculateCashInHand(userId);
   }
 

@@ -1,6 +1,6 @@
-# Finora Implementation Progress Tracker
+# M12 Expense Tracker — Implementation Progress Tracker
 
-This document records the exact status, tasks, executed tests, and verification checkpoints across all 7 phases of Finora.
+This document records the exact status, tasks, executed tests, and verification checkpoints across all development phases of M12 Expense Tracker.
 
 ---
 

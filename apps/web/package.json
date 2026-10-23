@@ -1,7 +1,7 @@
 {
   "name": "@finora/web",
   "version": "1.0.0",
-  "description": "Finora Frontend Web Application (Next.js App Router)",
+  "description": "M12 Expense Tracker Frontend Web Application (Next.js App Router)",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",

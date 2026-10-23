@@ -1,7 +1,7 @@
 {
   "name": "@finora/api",
   "version": "1.0.0",
-  "description": "Finora Backend REST API with Express & Mongoose",
+  "description": "M12 Expense Tracker Backend REST API with Express & Mongoose",
   "main": "./dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.10.1",
     "morgan": "^1.10.0",
+    "resend": "^6.34.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {

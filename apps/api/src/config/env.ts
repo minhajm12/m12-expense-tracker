@@ -49,9 +49,11 @@ const monorepoRoot = getMonorepoRoot();
 const rootEnvPath = path.join(monorepoRoot, '.env');
 const apiEnvPath = path.join(monorepoRoot, 'apps', 'api', '.env');
 
+const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
 // 1. First, load the authoritative root .env configuration
 if (fs.existsSync(rootEnvPath)) {
-  dotenv.config({ path: rootEnvPath, override: true });
+  dotenv.config({ path: rootEnvPath, override: !isTestEnv });
 }
 
 // 2. Also support workspace-level apps/api/.env if it exists and has overrides
@@ -62,6 +64,10 @@ if (fs.existsSync(apiEnvPath) && apiEnvPath !== rootEnvPath) {
 // 3. Fallback: load current working directory .env if different
 dotenv.config();
 
+if (isTestEnv) {
+  process.env.NODE_ENV = 'test';
+}
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -71,7 +77,7 @@ const envSchema = z.object({
   JWT_SECRET: z
     .string()
     .min(32, 'JWT_SECRET must be at least 32 characters for cryptographic security')
-    .default('finora_super_secure_jwt_secret_key_at_least_32_chars_long!'),
+    .default('m12_expense_tracker_secure_jwt_secret_key_at_least_32_chars!'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
   RESEND_API_KEY: z.string().optional(),
@@ -91,7 +97,7 @@ try {
       // In automated test suite, provide a dummy fallback since MongoMemoryServer supplies the real URI
       parsedEnv = envSchema.parse({
         ...process.env,
-        MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/finora_test',
+        MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/m12_expense_tracker_test',
       });
     } else {
       console.error('❌ [Config] Fatal environment configuration errors:');

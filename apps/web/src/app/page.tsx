@@ -195,22 +195,139 @@ export default function DashboardPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
-        <div className="flex justify-center mb-2">
-          <Logo height={48} className="h-12 w-auto" />
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight">Welcome to M12 Expense Tracker</h2>
-        <p className="text-sm text-muted-foreground max-w-md">
-          Sign in or create a new account to manage bank accounts, double-entry credit cards, transactions, and real-time analytics.
-        </p>
-        <div className="flex gap-3 pt-2">
-          <Link href="/login">
-            <Button variant="default">Sign In</Button>
-          </Link>
-          <Link href="/register">
-            <Button variant="outline">Create Account</Button>
-          </Link>
-        </div>
+      <div className="w-full">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden py-16 md:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="text-center space-y-6 max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-semibold tracking-wide uppercase">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Smart Personal Finance Operating System</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground leading-tight">
+              Master Your Money,{' '}
+              <br className="hidden sm:inline" />
+              <span className="text-primary bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Cash Flow & Investments
+              </span>
+            </h1>
+
+            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
+              Double-entry precision for bank accounts, credit cards, EMI schedules, external chits, lending, and family chit funds — all unified in one private, real-time dashboard.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+              <Link href="/register" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto gap-2 text-sm font-semibold h-11 px-6 rounded-xl shadow-md">
+                  <span>Create Free Account</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/login" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto text-sm font-medium h-11 px-6 rounded-xl border-border">
+                  Sign In to Your Vault
+                </Button>
+              </Link>
+            </div>
+
+            <div className="flex items-center justify-center gap-6 pt-6 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                <span>100% Private Financial Data</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Coins className="h-4 w-4 text-primary" />
+                <span>Zero Ads or Data Selling</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Cards Grid */}
+        <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-border/60">
+          <div className="text-center space-y-2 mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Built for Complete Financial Clarity
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+              Everything you need to track multi-account balances, debt obligations, and wealth accumulation without spreadsheet headaches.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card className="rounded-2xl border-border bg-card/60 backdrop-blur-sm hover:border-primary/40 transition-all duration-200">
+              <CardHeader>
+                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 mb-2">
+                  <Wallet className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg">Multi-Account Banking</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Track checking, savings, cash-in-hand, and digital wallets. Instant atomic transfers without balance drift.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="rounded-2xl border-border bg-card/60 backdrop-blur-sm hover:border-primary/40 transition-all duration-200">
+              <CardHeader>
+                <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 mb-2">
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg">Double-Entry Credit Cards</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Real-time billing cycles, statement tracking, available credit monitoring, and automated payoff reminders.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="rounded-2xl border-border bg-card/60 backdrop-blur-sm hover:border-primary/40 transition-all duration-200">
+              <CardHeader>
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-2">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg">EMI & Loan Schedules</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Intelligent amortization, down payment deduction, historical settlement, and automated upcoming obligations.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="rounded-2xl border-border bg-card/60 backdrop-blur-sm hover:border-primary/40 transition-all duration-200">
+              <CardHeader>
+                <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 mb-2">
+                  <Coins className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg">External Chits & Investments</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Full lifecycle management: scheduled monthly contributions, winning payout accounting, and remaining schedules.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="rounded-2xl border-border bg-card/60 backdrop-blur-sm hover:border-primary/40 transition-all duration-200">
+              <CardHeader>
+                <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 mb-2">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg">Family Chit Fund Engine</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Host and administer private chit funds with multi-bid auctions, monthly dividend distribution, and member ledgers.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="rounded-2xl border-border bg-card/60 backdrop-blur-sm hover:border-primary/40 transition-all duration-200">
+              <CardHeader>
+                <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-2">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg">Cash Flow Analytics</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Interactive breakdowns by channel, category, payment method, and monthly projections. Keep every rupee accounted for.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </section>
       </div>
     );
   }

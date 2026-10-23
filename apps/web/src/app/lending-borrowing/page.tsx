@@ -193,7 +193,7 @@ export default function LendingBorrowingPage() {
           date: formData.date,
           dueDate: formData.dueDate || undefined,
           paymentMethod: formData.paymentMethod,
-          bankAccountId: (!formData.isHistorical && formData.paymentMethod === 'upi') ? formData.bankAccountId : undefined,
+          bankAccountId: formData.paymentMethod === 'upi' ? formData.bankAccountId : undefined,
           description: formData.description.trim() || undefined,
           notes: formData.notes.trim() || undefined,
           isHistorical: formData.isHistorical,
@@ -237,6 +237,11 @@ export default function LendingBorrowingPage() {
       return;
     }
 
+    if (!formData.isHistorical && formData.paymentMethod === 'upi' && !formData.bankAccountId) {
+      toast.error('Please select a bank account for UPI payment');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch(`${getApiUrl()}/api/v1/lending-borrowing/${selectedRecord.id || selectedRecord._id}`, {
@@ -251,6 +256,8 @@ export default function LendingBorrowingPage() {
           dueDate: formData.dueDate || undefined,
           paymentMethod: formData.paymentMethod,
           bankAccountId: formData.paymentMethod === 'upi' ? formData.bankAccountId : undefined,
+          isHistorical: formData.isHistorical,
+          accountingMode: formData.isHistorical ? 'historical' : 'live',
           description: formData.description.trim() || undefined,
           notes: formData.notes.trim() || undefined,
         }),
@@ -994,14 +1001,14 @@ export default function LendingBorrowingPage() {
                   </div>
                 </div>
 
-                {/* Bank Account Selection (Only for live UPI) */}
-                {formData.paymentMethod === 'upi' && !formData.isHistorical && (
+                {/* Bank Account Selection (for UPI) */}
+                {formData.paymentMethod === 'upi' && (
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Bank Account *
+                      Bank Account {formData.isHistorical ? '(Recorded for Reference)' : '*'}
                     </label>
                     <select
-                      required
+                      required={!formData.isHistorical}
                       value={formData.bankAccountId}
                       onChange={(e) => setFormData((prev) => ({ ...prev, bankAccountId: e.target.value }))}
                       className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -1017,7 +1024,9 @@ export default function LendingBorrowingPage() {
                       )}
                     </select>
                     <p className="text-[11px] text-muted-foreground">
-                      {formData.type === LendingBorrowingType.LENDING
+                      {formData.isHistorical
+                        ? 'Past loan reference — funding bank account is recorded without debiting your current balance.'
+                        : formData.type === LendingBorrowingType.LENDING
                         ? 'This bank account balance will decrease by the principal amount.'
                         : 'This bank account balance will increase by the principal amount.'}
                     </p>
@@ -1100,6 +1109,34 @@ export default function LendingBorrowingPage() {
 
             <form onSubmit={handleUpdateRecord} className="overflow-y-auto flex-1">
               <CardContent className="space-y-4 pt-4">
+                {/* Past Lending Switch (Only for Lending) */}
+                {selectedRecord.type === LendingBorrowingType.LENDING && (
+                  <div className="p-3.5 rounded-xl border border-border bg-muted/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5 pr-2">
+                        <label className="text-xs font-bold text-foreground cursor-pointer flex items-center gap-1.5" htmlFor="edit-past-lending-toggle">
+                          <span>Past Lending — Existing Loan</span>
+                          <Badge variant="outline" className="text-[10px] font-medium border-primary/30 text-primary bg-primary/5">
+                            Pre-tracking
+                          </Badge>
+                        </label>
+                        <p className="text-[11px] text-muted-foreground">
+                          {formData.isHistorical
+                            ? 'Marked as a past loan. It does not debit your current bank or cash balance.'
+                            : 'Live loan. Debits your bank or cash balance.'}
+                        </p>
+                      </div>
+                      <input
+                        id="edit-past-lending-toggle"
+                        type="checkbox"
+                        checked={formData.isHistorical}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, isHistorical: e.target.checked }))}
+                        className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer shrink-0"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1158,6 +1195,71 @@ export default function LendingBorrowingPage() {
                     />
                   </div>
                 </div>
+
+                {/* Payment Method Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Payment Method *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'upi' }))}
+                      className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                        formData.paymentMethod === 'upi'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-background text-muted-foreground'
+                      }`}
+                    >
+                      <ArrowUpRight className="h-4 w-4" />
+                      UPI / Bank Transfer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'cash' }))}
+                      className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                        formData.paymentMethod === 'cash'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-background text-muted-foreground'
+                      }`}
+                    >
+                      <Banknote className="h-4 w-4" />
+                      Cash in Hand
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bank Account Selection (for UPI) */}
+                {formData.paymentMethod === 'upi' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Bank Account {formData.isHistorical ? '(Recorded for Reference)' : '*'}
+                    </label>
+                    <select
+                      required={!formData.isHistorical}
+                      value={formData.bankAccountId}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, bankAccountId: e.target.value }))}
+                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {accounts.length === 0 ? (
+                        <option value="">No bank accounts available</option>
+                      ) : (
+                        accounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.accountName} ({a.bankName}) - Balance: {formatCurrency(a.currentBalance, user?.currency || 'INR')}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <p className="text-[11px] text-muted-foreground">
+                      {formData.isHistorical
+                        ? 'Past loan reference — funding bank account is recorded without debiting your current balance.'
+                        : selectedRecord.type === LendingBorrowingType.LENDING
+                        ? 'This bank account balance will decrease by the principal amount.'
+                        : 'This bank account balance will increase by the principal amount.'}
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1450,11 +1552,13 @@ export default function LendingBorrowingPage() {
                   <span className="text-muted-foreground block">Disbursement Method:</span>
                   <span className="font-semibold text-foreground">
                     {selectedRecord.paymentMethod === 'upi'
-                      ? selectedRecord.isHistorical
-                        ? 'UPI (Pre-tracking)'
-                        : `UPI (${selectedRecord.bankAccountName || 'Bank Account'})`
+                      ? selectedRecord.bankAccountName
+                        ? `UPI (${selectedRecord.bankAccountName})${selectedRecord.isHistorical ? ' — Past Loan' : ''}`
+                        : selectedRecord.isHistorical
+                        ? 'UPI (Past Loan)'
+                        : 'UPI (Bank Account)'
                       : selectedRecord.isHistorical
-                      ? 'Cash (Pre-tracking)'
+                      ? 'Cash (Past Loan)'
                       : 'Cash in Hand'}
                   </span>
                 </div>

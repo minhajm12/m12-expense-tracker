@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -28,6 +28,7 @@ import {
   ChevronRight,
   ListOrdered,
   Edit,
+  X,
   AlertCircle,
   ArrowRight,
   Building2,
@@ -106,6 +107,7 @@ function EmiManagementContent() {
   const [selectedEmiForPay, setSelectedEmiForPay] = useState<EmiRule | null>(null);
   const [selectedOccurrenceForPay, setSelectedOccurrenceForPay] = useState<EmiOccurrence | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
+  const payQueryHandledRef = useRef(false);
   const [payActualAmount, setPayActualAmount] = useState('');
   const [payDiscountType, setPayDiscountType] = useState<'none' | 'fixed' | 'percentage' | 'override'>('none');
   const [payDiscountValue, setPayDiscountValue] = useState('');
@@ -218,32 +220,6 @@ function EmiManagementContent() {
         const loadedEmis = emiJson.data || [];
         setEmis(loadedEmis);
         setSummary(emiJson.summary || null);
-
-        // Check if query params requested to pay a specific installment
-        const payRuleId = searchParams.get('pay');
-        const payOccurrenceKey = searchParams.get('occurrence');
-        if (payRuleId) {
-          const targetEmi = loadedEmis.find((e: any) => e.id === payRuleId || e._id === payRuleId);
-          if (targetEmi) {
-            fetch(`${getApiUrl()}/api/v1/emi/${payRuleId}/installments`, { credentials: 'include' })
-              .then((r) => r.json())
-              .then((occJson) => {
-                if (occJson.success && occJson.data) {
-                  const targetOcc = payOccurrenceKey
-                    ? occJson.data.find((o: any) => o.occurrenceKey === payOccurrenceKey)
-                    : occJson.data.find(
-                        (o: any) =>
-                          o.status !== EmiOccurrenceStatus.PAID &&
-                          o.status !== EmiOccurrenceStatus.PAID_HISTORICAL
-                      );
-                  if (targetOcc) {
-                    openPayModal(targetEmi, targetOcc);
-                  }
-                }
-              })
-              .catch(() => {});
-          }
-        }
       }
       if (accRes.ok && accJson.success) {
         setAccounts(accJson.data || []);
@@ -421,6 +397,46 @@ function EmiManagementContent() {
     setShowPayModal(true);
   };
 
+  // Close Pay Modal safely and purge URL query param so it never re-opens
+  const closePayModal = () => {
+    setShowPayModal(false);
+    setSelectedEmiForPay(null);
+    setSelectedOccurrenceForPay(null);
+    if (typeof window !== 'undefined' && window.location.search) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  };
+
+  // Handle direct URL payment request exactly once per page visit
+  useEffect(() => {
+    if (payQueryHandledRef.current) return;
+    const payRuleId = searchParams.get('pay');
+    if (!payRuleId || emis.length === 0) return;
+
+    payQueryHandledRef.current = true;
+    const payOccurrenceKey = searchParams.get('occurrence');
+    const targetEmi = emis.find((e: any) => e.id === payRuleId || e._id === payRuleId);
+    if (targetEmi) {
+      fetch(`${getApiUrl()}/api/v1/emi/${payRuleId}/installments`, { credentials: 'include' })
+        .then((r) => r.json())
+        .then((occJson) => {
+          if (occJson.success && occJson.data) {
+            const targetOcc = payOccurrenceKey
+              ? occJson.data.find((o: any) => o.occurrenceKey === payOccurrenceKey)
+              : occJson.data.find(
+                  (o: any) =>
+                    o.status !== EmiOccurrenceStatus.PAID &&
+                    o.status !== EmiOccurrenceStatus.PAID_HISTORICAL
+                );
+            if (targetOcc) {
+              openPayModal(targetEmi, targetOcc);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [emis, searchParams]);
+
   // Confirm Pay EMI
   const handleConfirmPay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -474,9 +490,7 @@ function EmiManagementContent() {
             ? `EMI paid! ₹${finalAmount.toLocaleString()} recorded (Discount: ₹${discountAmount.toLocaleString()}).`
             : `EMI payment recorded successfully!`
         );
-        setShowPayModal(false);
-        setSelectedEmiForPay(null);
-        setSelectedOccurrenceForPay(null);
+        closePayModal();
         fetchData();
         if (viewScheduleEmi) {
           fetchSchedule(viewScheduleEmi.id);
@@ -1405,6 +1419,15 @@ function EmiManagementContent() {
                   Confirm installment payment, adjust amount or discounts, and choose the payment method.
                 </p>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={closePayModal}
+                disabled={Boolean(payingEmiId)}
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
             <form onSubmit={handleConfirmPay} className="space-y-4">
@@ -1639,7 +1662,7 @@ function EmiManagementContent() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowPayModal(false)}
+                  onClick={closePayModal}
                   disabled={Boolean(payingEmiId)}
                 >
                   Cancel

@@ -8,9 +8,11 @@ export function Toaster() {
       position="top-right"
       richColors
       closeButton
+      className="z-[100]"
       toastOptions={{
         style: {
           borderRadius: '0.625rem',
+          zIndex: 9999,
         },
       }}
     />

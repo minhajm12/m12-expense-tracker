@@ -1,13 +1,13 @@
-# Finora Architecture & Technical Specifications
+# M12 Expense Tracker — Architecture & Technical Specifications
 
-Finora is an enterprise-grade multi-user personal finance and double-entry accounting application engineered with Next.js, Express.js, TypeScript, Tailwind CSS, and MongoDB/Mongoose.
+M12 Expense Tracker is an enterprise-grade multi-user personal finance and double-entry accounting application engineered with Next.js, Express.js, TypeScript, Tailwind CSS, and MongoDB/Mongoose.
 
 ---
 
 ## 1. Monorepo Project Structure
 
 ```
-finora/
+m12_expense_tracker/
 ├── apps/
 │   ├── api/                     # Express.js REST API with TypeScript & Mongoose
 │   │   ├── src/
@@ -164,7 +164,7 @@ export interface ApiResponse<T = unknown> {
 |---|---|---|---|
 | `PORT` | API | `5000` | Express server port |
 | `NODE_ENV` | API | `development` | Runtime environment (`development`, `production`, `test`) |
-| `MONGODB_URI` | API | `mongodb://127.0.0.1:27017/finora_db` | MongoDB connection URI (Atlas or local) |
+| `MONGODB_URI` | API | `mongodb://127.0.0.1:27017/m12_expense_tracker_db` | MongoDB connection URI (Atlas or local) |
 | `JWT_SECRET` | API | - | Minimum 32-character cryptographic signing secret |
 | `JWT_EXPIRES_IN`| API | `7d` | Token lifetime |
 | `CORS_ORIGIN` | API | `http://localhost:3000` | Allowed frontend origin |

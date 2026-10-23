@@ -17,9 +17,9 @@ interface AuthContextType {
     currency?: string;
     requireVerification?: boolean;
     onboarding?: boolean;
-  }) => Promise<{ success: boolean; error?: string; requiresVerification?: boolean; data?: any }>;
-  verifyOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; data?: any }>;
-  resendOtp: (email: string) => Promise<{ success: boolean; error?: string; retryAfterSeconds?: number }>;
+  }) => Promise<{ success: boolean; error?: string; code?: string; requiresVerification?: boolean; data?: any }>;
+  verifyOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; code?: string; data?: any }>;
+  resendOtp: (email: string) => Promise<{ success: boolean; error?: string; code?: string; retryAfterSeconds?: number }>;
   finishOnboarding: (data: {
     modulePreferences?: any;
     bankAccounts?: any[];
@@ -115,12 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const msg = json.error?.message || 'Login failed';
         const code = json.error?.code;
         toast.error(msg);
-        return { success: false, error: msg, code, data: json.data };
+        return { success: false, error: msg, code, data: json.data || json.error?.details };
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Network error during login';
       toast.error(msg);
-      return { success: false, error: msg };
+      return { success: false, error: msg, code: 'NETWORK_ERROR' };
     } finally {
       inFlightRef.current = false;
       setIsLoading(false);
@@ -158,13 +158,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true, data: json.data };
       } else {
         const msg = json.error?.message || 'Registration failed';
+        const code = json.error?.code;
         toast.error(msg);
-        return { success: false, error: msg };
+        return { success: false, error: msg, code };
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Network error during registration';
       toast.error(msg);
-      return { success: false, error: msg };
+      return { success: false, error: msg, code: 'NETWORK_ERROR' };
     } finally {
       inFlightRef.current = false;
       setIsLoading(false);
@@ -188,11 +189,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true, data: json.data };
       } else {
         const msg = json.error?.message || 'Verification failed';
-        return { success: false, error: msg };
+        const code = json.error?.code;
+        toast.error(msg);
+        return { success: false, error: msg, code };
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Network error during OTP verification';
-      return { success: false, error: msg };
+      toast.error(msg);
+      return { success: false, error: msg, code: 'NETWORK_ERROR' };
     }
   };
 
@@ -211,12 +215,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       } else {
         const msg = json.error?.message || 'Failed to resend verification code';
+        const code = json.error?.code;
         const retryAfterSeconds = json.error?.details?.retryAfterSeconds || json.data?.retryAfterSeconds;
-        return { success: false, error: msg, retryAfterSeconds };
+        toast.error(msg);
+        return { success: false, error: msg, code, retryAfterSeconds };
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Network error during code resend';
-      return { success: false, error: msg };
+      toast.error(msg);
+      return { success: false, error: msg, code: 'NETWORK_ERROR' };
     }
   };
 

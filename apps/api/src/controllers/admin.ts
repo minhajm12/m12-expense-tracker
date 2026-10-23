@@ -1,6 +1,16 @@
+import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import { User } from '../models/User';
 import { AuditLog } from '../models/AuditLog';
+import { BankAccount } from '../models/BankAccount';
+import { CreditCard } from '../models/CreditCard';
+import { Transaction } from '../models/Transaction';
+import { LendingBorrowing } from '../models/LendingBorrowing';
+import { EmiRule } from '../models/EmiRule';
+import { ChitFund } from '../models/ChitFund';
+import { Investment } from '../models/Investment';
+import { Budget } from '../models/Budget';
+import { RecurringTransaction } from '../models/RecurringTransaction';
 import { sendSuccess, sendError, AppError } from '../utils/api-response';
 import { UserRole, registerSchema, paginationQuerySchema } from '@finora/shared';
 import { signToken, sendAuthCookie } from '../utils/token';
@@ -234,5 +244,155 @@ export const listAuditLogs = async (req: Request, res: Response): Promise<void> 
       totalPages: Math.ceil(total / query.limit),
     }
   );
+};
+
+export const getFeatureStatus = async (req: Request, res: Response): Promise<void> => {
+  const [
+    totalUsers,
+    activeUsers,
+    adminUsers,
+    totalAccounts,
+    totalCards,
+    totalTransactions,
+    totalLendingBorrowing,
+    totalEmis,
+    totalChitFunds,
+    totalInvestments,
+    totalBudgets,
+    totalRecurring,
+    totalAuditLogs,
+  ] = await Promise.all([
+    User.countDocuments({}),
+    User.countDocuments({ isActive: true }),
+    User.countDocuments({ role: UserRole.ADMIN }),
+    BankAccount.countDocuments({}),
+    CreditCard.countDocuments({}),
+    Transaction.countDocuments({}),
+    LendingBorrowing.countDocuments({}),
+    EmiRule.countDocuments({}),
+    ChitFund.countDocuments({}),
+    Investment.countDocuments({}),
+    Budget.countDocuments({}),
+    RecurringTransaction.countDocuments({}),
+    AuditLog.countDocuments({}),
+  ]);
+
+  const modules = [
+    {
+      id: 'analytics',
+      name: 'Dashboard & Real-Time Analytics',
+      status: 'active',
+      description: 'Period KPIs, income vs expense breakdowns, and monthly trends.',
+      recordCount: totalTransactions,
+      unit: 'transactions processed',
+    },
+    {
+      id: 'accounts',
+      name: 'Multi-Account Banking & Cash',
+      status: 'active',
+      description: 'Checking, savings, credit, and personal cash in hand management.',
+      recordCount: totalAccounts,
+      unit: 'registered accounts',
+    },
+    {
+      id: 'credit_cards',
+      name: 'Double-Entry Credit Card Engine',
+      status: 'active',
+      description: 'Statement tracking, grace periods, billing cycles, and utilization.',
+      recordCount: totalCards,
+      unit: 'active cards',
+    },
+    {
+      id: 'transactions',
+      name: 'Transactions & Daily Expense Tracking',
+      status: 'active',
+      description: 'Monthly ledger, multi-channel payment records, and server pagination.',
+      recordCount: totalTransactions,
+      unit: 'ledger entries',
+    },
+    {
+      id: 'lending_borrowing',
+      name: 'Lending & Borrowing (Hand Loans)',
+      status: 'active',
+      description: 'Principal loan ledgers, partial settlements, and unified ledger sync.',
+      recordCount: totalLendingBorrowing,
+      unit: 'loan records',
+    },
+    {
+      id: 'emi',
+      name: 'EMI Management & Schedule Projection',
+      status: 'active',
+      description: 'Amortization schedules, down payment accounting, and single-click payments.',
+      recordCount: totalEmis,
+      unit: 'active schedules',
+    },
+    {
+      id: 'chit_fund',
+      name: 'Family Chit Fund Engine',
+      status: 'active',
+      description: 'Private chit fund administration, monthly bidding auctions, and dividend distributions.',
+      recordCount: totalChitFunds,
+      unit: 'chit funds',
+    },
+    {
+      id: 'investments',
+      name: 'External Chit & Investment Portfolio',
+      status: 'active',
+      description: 'External chit schedules, winning payout accounting, and portfolio growth.',
+      recordCount: totalInvestments,
+      unit: 'investments tracked',
+    },
+    {
+      id: 'budgets',
+      name: 'Budget Tracking & Category Limits',
+      status: 'active',
+      description: 'Monthly budget caps, warning thresholds, and variance alerts.',
+      recordCount: totalBudgets,
+      unit: 'category budgets',
+    },
+    {
+      id: 'recurring',
+      name: 'Recurring Transactions & Reminders',
+      status: 'active',
+      description: 'Subscriptions, utility bills, and auto-scheduled payment reminders.',
+      recordCount: totalRecurring,
+      unit: 'active subscriptions',
+    },
+    {
+      id: 'reports',
+      name: 'Financial Reports & Balance Sheet',
+      status: 'active',
+      description: 'Net worth statements, cash flow projections, and won chit exclusions.',
+      recordCount: totalAccounts + totalCards + totalInvestments,
+      unit: 'financial assets',
+    },
+    {
+      id: 'security_admin',
+      name: 'Security & System Administration',
+      status: 'active',
+      description: 'Role-based access control, session invalidation, and audit trail.',
+      recordCount: totalAuditLogs,
+      unit: 'audit log events',
+    },
+  ];
+
+  sendSuccess(res, {
+    systemHealth: {
+      status: 'healthy',
+      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+      databaseHost: mongoose.connection.host || 'MongoDB Atlas',
+      uptimeSeconds: Math.floor(process.uptime()),
+      emailServiceConfigured: Boolean(process.env.RESEND_API_KEY),
+      nodeVersion: process.version,
+      timestamp: new Date().toISOString(),
+    },
+    userStatistics: {
+      totalUsers,
+      activeUsers,
+      inactiveUsers: totalUsers - activeUsers,
+      adminUsers,
+    },
+    modules,
+  });
 };
 

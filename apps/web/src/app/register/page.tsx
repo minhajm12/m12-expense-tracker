@@ -174,7 +174,8 @@ function RegisterContent() {
     }
     if (stepParam === '2' || stepParam === 'otp') {
       setStep(2);
-      setResendCooldown(60);
+      // When arriving via redirect from login, allow requesting a code immediately
+      setResendCooldown(0);
     }
   }, [searchParams]);
 
@@ -408,7 +409,7 @@ function RegisterContent() {
               <div className="flex justify-center mb-3">
                 <Logo height={48} className="h-12 w-auto" />
               </div>
-              <CardTitle className="text-xl font-bold tracking-tight">Create Finora Account</CardTitle>
+              <CardTitle className="text-xl font-bold tracking-tight">Create M12 Expense Tracker Account</CardTitle>
               <CardDescription className="text-xs">
                 Set up your personal financial workspace with isolated cryptographic tokens
               </CardDescription>
@@ -610,7 +611,7 @@ function RegisterContent() {
         {step === 3 && (
           <div>
             <CardHeader className="text-center pb-4 pt-2">
-              <CardTitle className="text-xl font-bold tracking-tight">Welcome to Finora</CardTitle>
+              <CardTitle className="text-xl font-bold tracking-tight">Welcome to M12 Expense Tracker</CardTitle>
               <CardDescription className="text-xs max-w-md mx-auto">
                 Your money, organized in one place. Set up your accounts, choose the tools you need, and start
                 tracking your financial life with clarity.

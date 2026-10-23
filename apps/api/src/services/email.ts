@@ -1,17 +1,166 @@
+import { Resend } from 'resend';
 import { env } from '../config/env';
 
 export interface EmailSendResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  code?: string;
 }
 
 // In-memory registry for automated tests and non-production inspection
 export const testEmailOtpStore = new Map<string, string>();
 
+// Lazy-initialized Resend client singleton
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  if (!resendClient && env.RESEND_API_KEY) {
+    resendClient = new Resend(env.RESEND_API_KEY.trim());
+  }
+  return resendClient;
+}
+
+/**
+ * Classifies Resend provider errors into clear, actionable categories.
+ */
+function classifyEmailError(err: any): { code: string; userMessage: string; logDetails: string } {
+  const errMsg = err?.message || (typeof err === 'string' ? err : 'Unknown email provider error');
+  const statusCode = err?.statusCode || err?.status;
+
+  // 1. Resend sandbox recipient restriction (403 validation_error)
+  if (
+    statusCode === 403 ||
+    errMsg.includes('only send testing emails') ||
+    errMsg.includes('verify a domain')
+  ) {
+    return {
+      code: 'RESEND_SANDBOX_RESTRICTION',
+      userMessage:
+        'Email delivery restricted by provider sandbox: to send to this email address, a custom domain must be verified at resend.com/domains. In sandbox mode, only the Resend account owner can receive emails.',
+      logDetails: `[Resend Sandbox Restriction] ${errMsg}`,
+    };
+  }
+
+  // 2. Unauthorized / invalid API key (401)
+  if (statusCode === 401 || errMsg.toLowerCase().includes('api key') || errMsg.toLowerCase().includes('unauthorized')) {
+    return {
+      code: 'EMAIL_PROVIDER_UNAUTHORIZED',
+      userMessage: 'Email delivery service is unauthorized. Please verify the RESEND_API_KEY configuration.',
+      logDetails: `[Resend Auth Error] Status 401: ${errMsg}`,
+    };
+  }
+
+  // 3. Rate limiting (429)
+  if (statusCode === 429 || errMsg.toLowerCase().includes('rate limit')) {
+    return {
+      code: 'EMAIL_RATE_LIMITED',
+      userMessage: 'Email delivery rate limit reached. Please wait a few moments before requesting another code.',
+      logDetails: `[Resend Rate Limit] Status 429: ${errMsg}`,
+    };
+  }
+
+  // 4. Domain not verified or validation failure (422)
+  if (statusCode === 422 || errMsg.toLowerCase().includes('domain')) {
+    return {
+      code: 'EMAIL_DOMAIN_UNVERIFIED',
+      userMessage: 'Sender domain is not verified with the email service provider.',
+      logDetails: `[Resend Domain Validation] Status 422: ${errMsg}`,
+    };
+  }
+
+  // 5. Generic / network error
+  return {
+    code: 'EMAIL_DELIVERY_FAILED',
+    userMessage: 'Unable to deliver verification code. Please check your connection and retry.',
+    logDetails: `[Resend Dispatch Failed] ${errMsg}`,
+  };
+}
+
+/**
+ * Unified email dispatcher using the Resend SDK.
+ */
+async function dispatchEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<EmailSendResult> {
+  const normalizedTo = params.to.toLowerCase().trim();
+  const fromEmail = env.OTP_FROM_EMAIL || 'onboarding@resend.dev';
+
+  // In automated test environment, always mock successfully to store OTP in testEmailOtpStore
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true' || env.NODE_ENV === 'test') {
+    return {
+      success: true,
+      messageId: `test-mock-${Date.now()}`,
+    };
+  }
+
+  // Check if RESEND_API_KEY is configured
+  if (!env.RESEND_API_KEY || !env.RESEND_API_KEY.trim()) {
+    if (env.NODE_ENV === 'production') {
+      console.error('❌ [EmailService] Fatal: RESEND_API_KEY is not configured in production environment.');
+      return {
+        success: false,
+        code: 'EMAIL_SERVICE_NOT_CONFIGURED',
+        error: 'Email delivery service is not configured. Please contact support.',
+      };
+    }
+
+    // Development or test environment without live credentials
+    console.info(`ℹ️ [EmailService Mock] Dispatching simulated email to ${normalizedTo} in ${env.NODE_ENV} mode.`);
+    return {
+      success: true,
+      messageId: `mock-${Date.now()}`,
+    };
+  }
+
+  const client = getResendClient();
+  if (!client) {
+    return {
+      success: false,
+      code: 'EMAIL_SERVICE_NOT_CONFIGURED',
+      error: 'Email delivery service client could not be initialized.',
+    };
+  }
+
+  try {
+    const { data, error } = await client.emails.send({
+      from: fromEmail,
+      to: [normalizedTo],
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+    });
+
+    if (error) {
+      const classified = classifyEmailError(error);
+      console.error(`⚠️ [EmailService] ${classified.logDetails}`);
+      return {
+        success: false,
+        code: classified.code,
+        error: classified.userMessage,
+      };
+    }
+
+    return {
+      success: true,
+      messageId: data?.id,
+    };
+  } catch (err: any) {
+    const classified = classifyEmailError(err);
+    console.error(`❌ [EmailService] Exception dispatching email: ${classified.logDetails}`);
+    return {
+      success: false,
+      code: classified.code,
+      error: classified.userMessage,
+    };
+  }
+}
+
 /**
  * Sends a branded 6-digit verification OTP email using Resend.
- * Uses inline email-safe CSS compatible with major email clients.
  */
 export async function sendVerificationOtpEmail(
   to: string,
@@ -22,7 +171,6 @@ export async function sendVerificationOtpEmail(
   testEmailOtpStore.set(normalizedTo, otp);
 
   const subject = `${otp} is your M12 Expense Tracker verification code`;
-  const fromEmail = env.OTP_FROM_EMAIL || 'onboarding@resend.dev';
 
   const htmlBody = `
 <!DOCTYPE html>
@@ -107,62 +255,12 @@ Enter this code in your registration screen to activate your account.
 Security Notice: Never share this code with anyone. M12 Expense Tracker will never ask for your code.
   `.trim();
 
-  // If no RESEND_API_KEY is configured, handle safely
-  if (!env.RESEND_API_KEY) {
-    if (env.NODE_ENV === 'production') {
-      console.error('[EmailService] Fatal: RESEND_API_KEY is not configured in production environment.');
-      return {
-        success: false,
-        error: 'Email delivery service is not configured. Please contact support.',
-      };
-    }
-
-    // Development or test environment without live credentials
-    return {
-      success: true,
-      messageId: `mock-${Date.now()}`,
-    };
-  }
-
-  // Live dispatch via Resend REST API
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [normalizedTo],
-        subject,
-        html: htmlBody,
-        text: textBody,
-      }),
-    });
-
-    const json = (await res.json()) as any;
-
-    if (!res.ok) {
-      const errMsg = json?.message || json?.error?.message || `Resend HTTP error ${res.status}`;
-      console.error('[EmailService] Resend email dispatch failed safely:', errMsg);
-      return {
-        success: false,
-        error: errMsg,
-      };
-    }
-
-    return {
-      success: true,
-      messageId: json?.id,
-    };
-  } catch (err: any) {
-    console.error('[EmailService] Network or provider exception dispatching email:', err?.message || err);
-    return {
-      success: false,
-      error: 'Unable to deliver verification code. Please check your connection and retry.',
-    };
-  }
+  return dispatchEmail({
+    to: normalizedTo,
+    subject,
+    html: htmlBody,
+    text: textBody,
+  });
 }
 
 /**
@@ -178,7 +276,6 @@ export async function sendPasswordResetOtpEmail(
   testEmailOtpStore.set(normalizedTo, otp);
 
   const subject = `${otp} is your M12 Expense Tracker password reset code`;
-  const fromEmail = env.OTP_FROM_EMAIL || 'onboarding@resend.dev';
 
   const htmlBody = `
 <!DOCTYPE html>
@@ -264,59 +361,10 @@ If you did not request this reset, your account is still safe and you can ignore
 Never share this code with anyone.
   `.trim();
 
-  // If no RESEND_API_KEY is configured, handle safely
-  if (!env.RESEND_API_KEY) {
-    if (env.NODE_ENV === 'production') {
-      console.error('[EmailService] Fatal: RESEND_API_KEY is not configured in production environment.');
-      return {
-        success: false,
-        error: 'Email delivery service is not configured. Please contact support.',
-      };
-    }
-
-    return {
-      success: true,
-      messageId: `mock-reset-${Date.now()}`,
-    };
-  }
-
-  // Live dispatch via Resend REST API
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [normalizedTo],
-        subject,
-        html: htmlBody,
-        text: textBody,
-      }),
-    });
-
-    const json = (await res.json()) as any;
-
-    if (!res.ok) {
-      const errMsg = json?.message || json?.error?.message || `Resend HTTP error ${res.status}`;
-      console.error('[EmailService] Resend email dispatch failed safely:', errMsg);
-      return {
-        success: false,
-        error: errMsg,
-      };
-    }
-
-    return {
-      success: true,
-      messageId: json?.id,
-    };
-  } catch (err: any) {
-    console.error('[EmailService] Network or provider exception dispatching reset email:', err?.message || err);
-    return {
-      success: false,
-      error: 'Unable to deliver verification code. Please check your connection and retry.',
-    };
-  }
+  return dispatchEmail({
+    to: normalizedTo,
+    subject,
+    html: htmlBody,
+    text: textBody,
+  });
 }

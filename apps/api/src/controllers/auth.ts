@@ -11,6 +11,7 @@ import {
   loginSchema,
   changePasswordSchema,
   updateProfileSchema,
+  UserRole,
 } from '@finora/shared';
 import { env } from '../config/env';
 
@@ -24,28 +25,39 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       ? Boolean(req.body.requireVerification)
       : (env.NODE_ENV === 'production' || req.body.onboarding === true);
 
-  const existingUser = await User.findOne({ email: normalizedEmail });
+  const existingUser = await User.findOne({ email: normalizedEmail }).select(
+    '+emailVerificationOtpHash +emailVerificationOtpExpires +emailVerificationAttempts +emailVerificationLastSentAt'
+  );
+
   if (existingUser) {
-    if (existingUser.isEmailVerified) {
-      throw new AppError('An account with this email address already exists', 409, 'EMAIL_EXISTS');
+    // If the account is verified OR is an admin OR is a legacy customer, protect it and prevent duplicate registration
+    if (
+      existingUser.isEmailVerified ||
+      existingUser.role === UserRole.ADMIN ||
+      (!existingUser.emailVerificationOtpHash && !existingUser.emailVerificationOtpExpires)
+    ) {
+      throw new AppError('An account with this email address already exists. Please sign in.', 409, 'EMAIL_EXISTS');
     }
 
-    // Existing unverified account: update credentials and resend verification OTP safely
+    // Existing genuinely unverified pending registration: update credentials and issue fresh OTP
     existingUser.fullName = validatedData.fullName;
     existingUser.password = validatedData.password;
     existingUser.currency = validatedData.currency || 'INR';
 
     const rawOtp = crypto.randomInt(100000, 1000000).toString();
-    existingUser.emailVerificationOtpHash = crypto.createHash('sha256').update(rawOtp).digest('hex');
-    existingUser.emailVerificationOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    const otpHash = crypto.createHash('sha256').update(rawOtp).digest('hex');
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, existingUser.fullName);
+    if (!emailRes.success && (env.NODE_ENV === 'production' || emailRes.code === 'RESEND_SANDBOX_RESTRICTION')) {
+      throw new AppError(emailRes.error || 'Failed to dispatch verification email', 500, emailRes.code || 'EMAIL_SEND_FAILED');
+    }
+
+    existingUser.emailVerificationOtpHash = otpHash;
+    existingUser.emailVerificationOtpExpires = otpExpires;
     existingUser.emailVerificationAttempts = 0;
     existingUser.emailVerificationLastSentAt = new Date();
     await existingUser.save();
-
-    const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, existingUser.fullName);
-    if (!emailRes.success && env.NODE_ENV === 'production') {
-      throw new AppError(emailRes.error || 'Failed to dispatch verification email', 500, 'EMAIL_SEND_FAILED');
-    }
 
     if (requireVerification) {
       sendSuccess(
@@ -76,25 +88,28 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   const otpHash = crypto.createHash('sha256').update(rawOtp).digest('hex');
   const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
-  const user = await User.create({
-    email: normalizedEmail,
-    password: validatedData.password,
-    fullName: validatedData.fullName,
-    currency: validatedData.currency,
-    isEmailVerified: !requireVerification,
-    isOnboardingCompleted: !requireVerification,
-    emailVerificationOtpHash: otpHash,
-    emailVerificationOtpExpires: otpExpires,
-    emailVerificationAttempts: 0,
-    emailVerificationLastSentAt: new Date(),
-  });
-
-  const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, user.fullName);
-  if (!emailRes.success && env.NODE_ENV === 'production') {
-    throw new AppError(emailRes.error || 'Failed to dispatch verification email', 500, 'EMAIL_SEND_FAILED');
-  }
-
+  // If email verification is required, attempt to dispatch the OTP email first.
+  // If the email provider fails (e.g. sandbox restriction, missing API key),
+  // do NOT leave a stranded, unverified user record in the database.
   if (requireVerification) {
+    const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, validatedData.fullName);
+    if (!emailRes.success && (env.NODE_ENV === 'production' || emailRes.code === 'RESEND_SANDBOX_RESTRICTION')) {
+      throw new AppError(emailRes.error || 'Failed to dispatch verification email', 500, emailRes.code || 'EMAIL_SEND_FAILED');
+    }
+
+    const user = await User.create({
+      email: normalizedEmail,
+      password: validatedData.password,
+      fullName: validatedData.fullName,
+      currency: validatedData.currency,
+      isEmailVerified: false,
+      isOnboardingCompleted: false,
+      emailVerificationOtpHash: otpHash,
+      emailVerificationOtpExpires: otpExpires,
+      emailVerificationAttempts: 0,
+      emailVerificationLastSentAt: new Date(),
+    });
+
     sendSuccess(
       res,
       { email: normalizedEmail, requiresVerification: true },
@@ -103,6 +118,16 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     );
     return;
   }
+
+  // Non-verification mode (testing or explicit bypass)
+  const user = await User.create({
+    email: normalizedEmail,
+    password: validatedData.password,
+    fullName: validatedData.fullName,
+    currency: validatedData.currency,
+    isEmailVerified: true,
+    isOnboardingCompleted: true,
+  });
 
   const token = signToken({
     userId: user._id.toString(),
@@ -117,7 +142,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = loginSchema.parse(req.body);
 
-  const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
+    '+password +emailVerificationOtpHash +emailVerificationOtpExpires'
+  );
   if (!user || !(await user.comparePassword(password))) {
     sendError(res, 'Invalid email or password', 401, 'INVALID_CREDENTIALS');
     return;
@@ -133,15 +160,35 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  // Handle email verification check safely for existing/legacy users
   if (user.isEmailVerified === false) {
-    sendError(
-      res,
-      'Your email address has not been verified. Please verify your email to log in.',
-      403,
-      'EMAIL_NOT_VERIFIED',
-      { email: user.email, requiresVerification: true }
-    );
-    return;
+    // 1. Root administrative accounts must never be locked out by registration OTP checks
+    if (user.role === UserRole.ADMIN) {
+      user.isEmailVerified = true;
+      user.isOnboardingCompleted = true;
+      user.emailVerificationOtpHash = undefined;
+      user.emailVerificationOtpExpires = undefined;
+      await user.save();
+    } else {
+      // 2. Pre-existing legacy users created before OTP email verification existed
+      // (no verification OTP hash or expiration was ever generated for them)
+      const hasNeverHadOtp = !user.emailVerificationOtpHash && !user.emailVerificationOtpExpires;
+      if (hasNeverHadOtp) {
+        user.isEmailVerified = true;
+        user.isOnboardingCompleted = true;
+        await user.save();
+      } else {
+        // Genuine unverified new registration waiting for email OTP verification
+        sendError(
+          res,
+          'Your email address has not been verified. Please verify your email to log in.',
+          403,
+          'EMAIL_NOT_VERIFIED',
+          { email: user.email, requiresVerification: true }
+        );
+        return;
+      }
+    }
   }
 
   const token = signToken({
@@ -272,17 +319,23 @@ export const resendEmailOtp = async (req: Request, res: Response): Promise<void>
   }
 
   const rawOtp = crypto.randomInt(100000, 1000000).toString();
+
+  const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, user.fullName);
+  if (!emailRes.success && (env.NODE_ENV === 'production' || emailRes.code === 'RESEND_SANDBOX_RESTRICTION')) {
+    sendError(
+      res,
+      emailRes.error || 'Failed to dispatch verification email. Please try again.',
+      500,
+      emailRes.code || 'EMAIL_SEND_FAILED'
+    );
+    return;
+  }
+
   user.emailVerificationOtpHash = crypto.createHash('sha256').update(rawOtp).digest('hex');
   user.emailVerificationOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
   user.emailVerificationAttempts = 0;
   user.emailVerificationLastSentAt = new Date();
   await user.save();
-
-  const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, user.fullName);
-  if (!emailRes.success && env.NODE_ENV === 'production') {
-    sendError(res, 'Failed to dispatch verification email. Please try again.', 500, 'EMAIL_SEND_FAILED');
-    return;
-  }
 
   sendSuccess(res, null, 'A fresh verification code has been sent to your email.');
 };

@@ -36,6 +36,8 @@ import { syncEmiNextPayableState } from '../services/emi-schedule';
 import { revertInvestmentStateForDeletedTransaction } from '../services/investment-service';
 import { InvestmentContribution } from '../models/InvestmentContribution';
 import { Investment } from '../models/Investment';
+import { LendingBorrowing } from '../models/LendingBorrowing';
+import { LendingBorrowingType } from '@finora/shared';
 
 export const listTransactions = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
@@ -44,10 +46,12 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
 
   const {
     accountId,
+    creditCardId,
     type,
     category,
     paymentMethod,
     paymentChannel,
+    payment,
     startDate,
     endDate,
     search,
@@ -55,49 +59,254 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
 
   const filter: Record<string, unknown> = { userId };
 
-  if (accountId) {
-    filter.$or = [{ accountId }, { destinationAccountId: accountId }];
+  // Parse Payment filter (unified Payment Method / Bank Account / Credit Card)
+  const paymentQuery = typeof payment === 'string' ? payment.trim() : undefined;
+  let targetAccountId = typeof accountId === 'string' && accountId !== 'all' ? accountId : undefined;
+  let targetCreditCardId =
+    typeof creditCardId === 'string' && creditCardId !== 'all' ? (creditCardId as string) : undefined;
+  let targetPaymentMethod =
+    typeof paymentMethod === 'string' && paymentMethod !== 'all' ? (paymentMethod as string) : undefined;
+
+  if (paymentQuery && paymentQuery !== 'all') {
+    if (paymentQuery.startsWith('account:')) {
+      targetAccountId = paymentQuery.replace('account:', '');
+    } else if (paymentQuery.startsWith('card:')) {
+      targetCreditCardId = paymentQuery.replace('card:', '');
+    } else if (paymentQuery.startsWith('method:')) {
+      targetPaymentMethod = paymentQuery.replace('method:', '');
+    }
   }
-  if (type) {
+
+  if (targetAccountId) {
+    filter.$or = [{ accountId: targetAccountId }, { destinationAccountId: targetAccountId }];
+  }
+  if (targetCreditCardId) {
+    filter.creditCardId = targetCreditCardId;
+  }
+  if (targetPaymentMethod) {
+    filter.paymentMethod = targetPaymentMethod;
+  }
+  if (type && type !== 'all' && type !== 'lending' && type !== 'borrowing') {
     filter.type = type;
   }
   if (category) {
     filter.category = category;
   }
-  if (paymentMethod) {
-    filter.paymentMethod = paymentMethod;
-  }
   if (paymentChannel) {
     filter.paymentChannel = paymentChannel;
   }
 
-  // Date range filter
-  if (startDate || endDate) {
+  // Monthly or custom date range filter (Asia/Kolkata timezone awareness)
+  // Supports independent year and month parameters, as well as legacy month=YYYY-MM
+  const yearQuery = typeof req.query.year === 'string' ? req.query.year.trim() : undefined;
+  const monthQuery = typeof req.query.month === 'string' ? req.query.month.trim() : undefined;
+
+  let dateFilterStart: Date | undefined;
+  let dateFilterEnd: Date | undefined;
+
+  if (startDate) {
+    dateFilterStart = getStartOfDay(startDate as string);
+  }
+  if (endDate) {
+    dateFilterEnd = getEndOfDay(endDate as string);
+  }
+
+  let targetYear: number | undefined;
+  let targetMonth: number | undefined;
+
+  if (monthQuery && /^\d{4}-\d{2}$/.test(monthQuery)) {
+    // Legacy format 'YYYY-MM'
+    const [yStr, mStr] = monthQuery.split('-');
+    targetYear = parseInt(yStr, 10);
+    targetMonth = parseInt(mStr, 10);
+  } else {
+    if (yearQuery && yearQuery !== 'all' && /^\d{4}$/.test(yearQuery)) {
+      targetYear = parseInt(yearQuery, 10);
+    }
+    if (monthQuery && monthQuery !== 'all' && /^\d{1,2}$/.test(monthQuery)) {
+      targetMonth = parseInt(monthQuery, 10);
+    }
+  }
+
+  if (targetYear !== undefined && targetMonth !== undefined) {
+    // Specific month in year (Asia/Kolkata UTC+05:30)
+    const mStr = String(targetMonth).padStart(2, '0');
+    const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+    dateFilterStart = new Date(`${targetYear}-${mStr}-01T00:00:00.000+05:30`);
+    dateFilterEnd = new Date(`${targetYear}-${mStr}-${String(lastDay).padStart(2, '0')}T23:59:59.999+05:30`);
+  } else if (targetYear !== undefined) {
+    // Full year (Asia/Kolkata UTC+05:30)
+    dateFilterStart = new Date(`${targetYear}-01-01T00:00:00.000+05:30`);
+    dateFilterEnd = new Date(`${targetYear}-12-31T23:59:59.999+05:30`);
+  }
+
+  if (dateFilterStart || dateFilterEnd) {
     filter.date = {};
-    if (startDate) (filter.date as Record<string, unknown>).$gte = getStartOfDay(startDate as string);
-    if (endDate) (filter.date as Record<string, unknown>).$lte = getEndOfDay(endDate as string);
+    if (dateFilterStart) (filter.date as Record<string, unknown>).$gte = dateFilterStart;
+    if (dateFilterEnd) (filter.date as Record<string, unknown>).$lte = dateFilterEnd;
   }
 
-  // Search keyword
+  // Search keyword for Transactions
   if (search && typeof search === 'string') {
-    filter.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { merchantOrRecipient: { $regex: search, $options: 'i' } },
-      { notes: { $regex: search, $options: 'i' } },
+    const searchRegex = { $regex: search, $options: 'i' };
+    const searchConditions = [
+      { title: searchRegex },
+      { merchantOrRecipient: searchRegex },
+      { notes: searchRegex },
     ];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: searchConditions }];
+      delete filter.$or;
+    } else {
+      filter.$or = searchConditions;
+    }
   }
 
-  const [total, transactions] = await Promise.all([
-    Transaction.countDocuments(filter),
-    Transaction.find(filter)
-      .sort({ date: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(pagination.limit),
-  ]);
+  // Build unified Lending & Borrowing entries if requested
+  // Strictly prevent lending/borrowing records from leaking into expense, income, investment, transfer, etc.
+  const isTypeLendingOrBorrowing = type === 'lending' || type === 'borrowing';
+  const isUnifiedRequested = req.query.unified === 'true' || req.query.includeLending === 'true';
+  const shouldIncludeLending = isTypeLendingOrBorrowing || (!type || type === 'all' ? isUnifiedRequested : false);
+
+  let filteredLbItems: any[] = [];
+
+  if (shouldIncludeLending) {
+    const [lbRecords, bankAccounts] = await Promise.all([
+      LendingBorrowing.find({ userId }),
+      BankAccount.find({ userId }, '_id accountName bankName'),
+    ]);
+
+    const bankNameMap = new Map<string, string>();
+    bankAccounts.forEach((acc) => {
+      bankNameMap.set(acc._id.toString(), `${acc.accountName} (${acc.bankName})`);
+    });
+
+    const unifiedLbItems: any[] = [];
+
+    for (const r of lbRecords) {
+      const bAccIdStr = r.bankAccountId ? r.bankAccountId.toString() : undefined;
+      // 1. Principal Event (Money Lent or Money Borrowed)
+      const principalItem = {
+        id: `lb_${r._id.toString()}`,
+        userId: r.userId.toString(),
+        type: r.type,
+        recordType: r.type,
+        isLendingBorrowing: true,
+        title: r.type === LendingBorrowingType.LENDING ? `Lent to ${r.personName}` : `Borrowed from ${r.personName}`,
+        amount: r.amount,
+        category: r.type === LendingBorrowingType.LENDING ? 'Lending' : 'Borrowing',
+        paymentMethod: r.paymentMethod,
+        paymentChannel: 'offline',
+        accountId: bAccIdStr,
+        bankAccountId: bAccIdStr,
+        bankAccountName: bAccIdStr ? bankNameMap.get(bAccIdStr) : undefined,
+        isHistorical: Boolean(r.isHistorical),
+        date: r.date,
+        merchantOrRecipient: r.personName,
+        notes: r.description || r.notes || '',
+        status: 'completed',
+        lendingBorrowingId: r._id.toString(),
+        createdAt: r.createdAt || r.date,
+        updatedAt: r.updatedAt,
+      };
+      unifiedLbItems.push(principalItem);
+
+      // 2. Repayment Events
+      if (Array.isArray(r.repayments)) {
+        for (const rep of r.repayments) {
+          const repBAccIdStr = rep.bankAccountId ? rep.bankAccountId.toString() : undefined;
+          const isLending = r.type === LendingBorrowingType.LENDING;
+          const repaymentItem = {
+            id: `rep_${rep._id.toString()}`,
+            userId: r.userId.toString(),
+            type: isLending ? 'income' : 'expense',
+            recordType: 'repayment',
+            isLendingBorrowing: true,
+            title: isLending
+              ? `Repayment received from ${r.personName}`
+              : `Repayment paid to ${r.personName}`,
+            amount: rep.amount,
+            category: isLending ? 'Lending Repayment' : 'Debt Repayment',
+            paymentMethod: rep.paymentMethod,
+            paymentChannel: 'offline',
+            accountId: repBAccIdStr,
+            bankAccountId: repBAccIdStr,
+            bankAccountName: repBAccIdStr ? bankNameMap.get(repBAccIdStr) : undefined,
+            isHistorical: Boolean(rep.isHistorical),
+            date: rep.date,
+            merchantOrRecipient: r.personName,
+            notes: rep.notes || '',
+            status: 'completed',
+            lendingBorrowingId: r._id.toString(),
+            createdAt: rep.createdAt || rep.date,
+          };
+          unifiedLbItems.push(repaymentItem);
+        }
+      }
+    }
+
+    filteredLbItems = unifiedLbItems.filter((item) => {
+      // Date filter
+      const itemTime = new Date(item.date).getTime();
+      if (dateFilterStart && itemTime < dateFilterStart.getTime()) return false;
+      if (dateFilterEnd && itemTime > dateFilterEnd.getTime()) return false;
+
+      // Payment filters
+      if (targetAccountId && item.accountId !== targetAccountId) return false;
+      if (targetCreditCardId) return false; // Hand loans do not use credit cards
+      if (targetPaymentMethod && item.paymentMethod !== targetPaymentMethod) return false;
+
+      // Type filter: strict isolation
+      if (type === 'lending') {
+        if (item.recordType !== 'lending') return false;
+      } else if (type === 'borrowing') {
+        if (item.recordType !== 'borrowing') return false;
+      }
+
+      // Category filter
+      if (category && item.category.toLowerCase() !== (category as string).toLowerCase()) {
+        return false;
+      }
+
+      // Search filter
+      if (search && typeof search === 'string') {
+        const q = search.toLowerCase();
+        const match =
+          (item.title && item.title.toLowerCase().includes(q)) ||
+          (item.merchantOrRecipient && item.merchantOrRecipient.toLowerCase().includes(q)) ||
+          (item.notes && item.notes.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+
+      return true;
+    });
+  }
+
+  // Query transactions matching filter
+  // If user explicitly asked for 'lending' or 'borrowing' only, transactions list is empty
+  let txList: any[] = [];
+  if (type !== 'lending' && type !== 'borrowing') {
+    const transactions = await Transaction.find(filter);
+    txList = transactions.map((t) => t.toJSON());
+  }
+
+  // Merge and sort deterministically
+  const combined = [...txList, ...filteredLbItems];
+  combined.sort((a, b) => {
+    const timeA = new Date(a.date).getTime();
+    const timeB = new Date(b.date).getTime();
+    if (timeB !== timeA) return timeB - timeA;
+    const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return createdB - createdA;
+  });
+
+  const total = combined.length;
+  const pagedRecords = combined.slice(skip, skip + pagination.limit);
 
   sendSuccess(
     res,
-    transactions.map((t) => t.toJSON()),
+    pagedRecords,
     undefined,
     200,
     {
@@ -106,6 +315,7 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
       limit: pagination.limit,
       total,
       totalPages: Math.ceil(total / pagination.limit),
+      hasMore: skip + pagedRecords.length < total,
     }
   );
 };
@@ -113,6 +323,73 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
 export const getTransactionById = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
   const { id } = req.params;
+
+  if (id.startsWith('lb_')) {
+    const lbId = id.replace('lb_', '');
+    const lb = await LendingBorrowing.findOne({ _id: lbId, userId });
+    if (!lb) {
+      sendError(res, 'Lending record not found', 404, 'RECORD_NOT_FOUND');
+      return;
+    }
+    const item = {
+      id: `lb_${lb._id.toString()}`,
+      userId: lb.userId.toString(),
+      type: lb.type,
+      recordType: lb.type,
+      isLendingBorrowing: true,
+      title: lb.type === LendingBorrowingType.LENDING ? `Lent to ${lb.personName}` : `Borrowed from ${lb.personName}`,
+      amount: lb.amount,
+      category: lb.type === LendingBorrowingType.LENDING ? 'Lending' : 'Borrowing',
+      paymentMethod: lb.paymentMethod,
+      paymentChannel: 'offline',
+      accountId: lb.bankAccountId ? lb.bankAccountId.toString() : undefined,
+      date: lb.date,
+      merchantOrRecipient: lb.personName,
+      notes: lb.description || lb.notes || '',
+      status: 'completed',
+      lendingBorrowingId: lb._id.toString(),
+      createdAt: lb.createdAt || lb.date,
+      updatedAt: lb.updatedAt,
+    };
+    sendSuccess(res, item);
+    return;
+  }
+
+  if (id.startsWith('rep_')) {
+    const repId = id.replace('rep_', '');
+    const lb = await LendingBorrowing.findOne({ 'repayments._id': repId, userId });
+    if (!lb) {
+      sendError(res, 'Repayment record not found', 404, 'RECORD_NOT_FOUND');
+      return;
+    }
+    const rep = lb.repayments.find((r) => r._id.toString() === repId);
+    if (!rep) {
+      sendError(res, 'Repayment record not found', 404, 'RECORD_NOT_FOUND');
+      return;
+    }
+    const isLending = lb.type === LendingBorrowingType.LENDING;
+    const item = {
+      id: `rep_${rep._id.toString()}`,
+      userId: lb.userId.toString(),
+      type: isLending ? 'income' : 'expense',
+      recordType: 'repayment',
+      isLendingBorrowing: true,
+      title: isLending ? `Repayment received from ${lb.personName}` : `Repayment paid to ${lb.personName}`,
+      amount: rep.amount,
+      category: isLending ? 'Lending Repayment' : 'Debt Repayment',
+      paymentMethod: rep.paymentMethod,
+      paymentChannel: 'offline',
+      accountId: rep.bankAccountId ? rep.bankAccountId.toString() : undefined,
+      date: rep.date,
+      merchantOrRecipient: lb.personName,
+      notes: rep.notes || '',
+      status: 'completed',
+      lendingBorrowingId: lb._id.toString(),
+      createdAt: rep.createdAt || rep.date,
+    };
+    sendSuccess(res, item);
+    return;
+  }
 
   const transaction = await Transaction.findOne({ _id: id, userId });
   if (!transaction) {
@@ -253,6 +530,17 @@ export const createTransaction = async (req: Request, res: Response): Promise<vo
 export const updateTransaction = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
   const { id } = req.params;
+
+  if (id.startsWith('lb_') || id.startsWith('rep_')) {
+    sendError(
+      res,
+      'Lending and borrowing entries must be modified directly in the Lending & Borrowing module to preserve ledger integrity.',
+      400,
+      'CANNOT_MODIFY_LENDING_RECORD_HERE'
+    );
+    return;
+  }
+
   const validated = updateTransactionSchema.parse(req.body);
 
   const transaction = await Transaction.findOne({ _id: id, userId });
@@ -372,6 +660,16 @@ export const updateTransaction = async (req: Request, res: Response): Promise<vo
 export const deleteTransaction = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
   const { id } = req.params;
+
+  if (id.startsWith('lb_') || id.startsWith('rep_')) {
+    sendError(
+      res,
+      'Lending and borrowing entries must be deleted directly in the Lending & Borrowing module to preserve ledger integrity.',
+      400,
+      'CANNOT_MODIFY_LENDING_RECORD_HERE'
+    );
+    return;
+  }
 
   const transaction = await Transaction.findOne({ _id: id, userId });
   if (!transaction) {

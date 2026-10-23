@@ -1,7 +1,7 @@
 {
   "name": "@finora/shared",
   "version": "1.0.0",
-  "description": "Shared types, schemas, and utilities for Finora",
+  "description": "Shared types, schemas, and utilities for M12 Expense Tracker",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
