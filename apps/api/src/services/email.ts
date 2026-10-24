@@ -1,4 +1,5 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import { env } from '../config/env';
 
 export interface EmailSendResult {
@@ -11,74 +12,155 @@ export interface EmailSendResult {
 // In-memory registry for automated tests and non-production inspection
 export const testEmailOtpStore = new Map<string, string>();
 
-// Lazy-initialized Resend client singleton
-let resendClient: Resend | null = null;
+// Lazy-initialized Nodemailer transporter singleton
+let mailTransporter: Transporter | null = null;
 
-function getResendClient(): Resend | null {
-  if (!resendClient && env.RESEND_API_KEY) {
-    resendClient = new Resend(env.RESEND_API_KEY.trim());
-  }
-  return resendClient;
+/**
+ * Creates a standard Gmail SMTP transporter.
+ * Uses Gmail's secure SMTP configuration via TLS/SSL.
+ */
+export function createGmailTransporter(user: string, pass: string): Transporter {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: user.trim(),
+      pass: pass.trim(),
+    },
+  });
 }
 
 /**
- * Classifies Resend provider errors into clear, actionable categories.
+ * Retrieves the active mail transporter, initializing if credentials exist.
  */
-function classifyEmailError(err: any): { code: string; userMessage: string; logDetails: string } {
-  const errMsg = err?.message || (typeof err === 'string' ? err : 'Unknown email provider error');
-  const statusCode = err?.statusCode || err?.status;
+export function getMailTransporter(): Transporter | null {
+  if (mailTransporter) {
+    return mailTransporter;
+  }
 
-  // 1. Resend sandbox recipient restriction (403 validation_error)
+  const user = env.MAIL_USER?.trim();
+  const pass = env.MAIL_PASS?.trim();
+
+  if (user && pass) {
+    mailTransporter = createGmailTransporter(user, pass);
+  }
+
+  return mailTransporter;
+}
+
+/**
+ * Sets a custom or mock mail transporter (primarily for testing and dependency injection).
+ */
+export function setMailTransporter(transporter: Transporter | null): void {
+  mailTransporter = transporter;
+}
+
+/**
+ * Resets the active mail transporter singleton.
+ */
+export function resetMailTransporter(): void {
+  mailTransporter = null;
+}
+
+/**
+ * Resolves the canonical sender header for authentication emails.
+ * Uses: "M12 Expense Tracker" <${OTP_FROM_EMAIL || MAIL_USER}>
+ */
+export function getFromAddress(): string {
+  const fromEmail = (env.OTP_FROM_EMAIL || env.MAIL_USER || 'no-reply@m12expensetracker.com').trim();
+  return `"M12 Expense Tracker" <${fromEmail}>`;
+}
+
+/**
+ * Sanitizes log messages to ensure credentials, tokens, or passwords are never written to logs.
+ */
+function sanitizeErrorMessage(msg: string): string {
+  if (!msg) return '';
+  // Redact potential passwords or app passwords if ever reflected in an error string
+  return msg
+    .replace(/[a-z]{4}\s+[a-z]{4}\s+[a-z]{4}\s+[a-z]{4}/gi, '[REDACTED_APP_PASS]')
+    .replace(/(?:password|pass|secret)=([^\s&]+)/gi, 'password=[REDACTED]');
+}
+
+/**
+ * Classifies Nodemailer / SMTP errors into clear, actionable, non-sensitive categories.
+ */
+export function classifySmtpError(err: any): { code: string; userMessage: string; logDetails: string } {
+  const rawMsg = err?.message || (typeof err === 'string' ? err : 'Unknown SMTP provider error');
+  const sanitizedMsg = sanitizeErrorMessage(rawMsg);
+  const errCode = (err?.code || '').toString().toUpperCase();
+  const responseCode = err?.responseCode;
+
+  // 1. Authentication failure (Invalid credentials, invalid App Password)
   if (
-    statusCode === 403 ||
-    errMsg.includes('only send testing emails') ||
-    errMsg.includes('verify a domain')
+    errCode === 'EAUTH' ||
+    responseCode === 535 ||
+    sanitizedMsg.toLowerCase().includes('invalid login') ||
+    sanitizedMsg.toLowerCase().includes('username and password not accepted') ||
+    sanitizedMsg.toLowerCase().includes('badcredentials')
   ) {
     return {
-      code: 'RESEND_SANDBOX_RESTRICTION',
-      userMessage:
-        'Email delivery restricted by provider sandbox: to send to this email address, a custom domain must be verified at resend.com/domains. In sandbox mode, only the Resend account owner can receive emails.',
-      logDetails: `[Resend Sandbox Restriction] ${errMsg}`,
+      code: 'SMTP_AUTH_FAILED',
+      userMessage: 'Email delivery authentication failed. Please verify the Gmail configuration or Google App Password.',
+      logDetails: `[SMTP Auth Error] ResponseCode: ${responseCode || 'N/A'}, Code: ${errCode}`,
     };
   }
 
-  // 2. Unauthorized / invalid API key (401)
-  if (statusCode === 401 || errMsg.toLowerCase().includes('api key') || errMsg.toLowerCase().includes('unauthorized')) {
+  // 2. Connection, DNS, or socket timeout
+  if (
+    errCode === 'ECONNREFUSED' ||
+    errCode === 'ETIMEDOUT' ||
+    errCode === 'ESOCKET' ||
+    errCode === 'ENOTFOUND' ||
+    errCode === 'EAI_AGAIN' ||
+    sanitizedMsg.toLowerCase().includes('connection closed') ||
+    sanitizedMsg.toLowerCase().includes('timeout')
+  ) {
     return {
-      code: 'EMAIL_PROVIDER_UNAUTHORIZED',
-      userMessage: 'Email delivery service is unauthorized. Please verify the RESEND_API_KEY configuration.',
-      logDetails: `[Resend Auth Error] Status 401: ${errMsg}`,
+      code: 'SMTP_CONNECTION_FAILED',
+      userMessage: 'Unable to connect to the email delivery service. Please try again later.',
+      logDetails: `[SMTP Connection Error] Code: ${errCode}, Details: ${sanitizedMsg}`,
     };
   }
 
-  // 3. Rate limiting (429)
-  if (statusCode === 429 || errMsg.toLowerCase().includes('rate limit')) {
+  // 3. Recipient mailbox error (invalid email address, rejected recipient)
+  if (
+    responseCode === 550 ||
+    responseCode === 551 ||
+    responseCode === 553 ||
+    errCode === 'EENVELOPE' ||
+    sanitizedMsg.toLowerCase().includes('recipient address rejected')
+  ) {
+    return {
+      code: 'INVALID_RECIPIENT',
+      userMessage: 'The provided email address could not receive messages.',
+      logDetails: `[SMTP Recipient Rejected] ResponseCode: ${responseCode || 'N/A'}, Code: ${errCode}`,
+    };
+  }
+
+  // 4. Rate limiting or quota exceeded
+  if (
+    responseCode === 421 ||
+    responseCode === 452 ||
+    sanitizedMsg.toLowerCase().includes('quota') ||
+    sanitizedMsg.toLowerCase().includes('rate limit')
+  ) {
     return {
       code: 'EMAIL_RATE_LIMITED',
       userMessage: 'Email delivery rate limit reached. Please wait a few moments before requesting another code.',
-      logDetails: `[Resend Rate Limit] Status 429: ${errMsg}`,
+      logDetails: `[SMTP Rate Limit] ResponseCode: ${responseCode || 'N/A'}: ${sanitizedMsg}`,
     };
   }
 
-  // 4. Domain not verified or validation failure (422)
-  if (statusCode === 422 || errMsg.toLowerCase().includes('domain')) {
-    return {
-      code: 'EMAIL_DOMAIN_UNVERIFIED',
-      userMessage: 'Sender domain is not verified with the email service provider.',
-      logDetails: `[Resend Domain Validation] Status 422: ${errMsg}`,
-    };
-  }
-
-  // 5. Generic / network error
+  // 5. Generic delivery failure
   return {
     code: 'EMAIL_DELIVERY_FAILED',
     userMessage: 'Unable to deliver verification code. Please check your connection and retry.',
-    logDetails: `[Resend Dispatch Failed] ${errMsg}`,
+    logDetails: `[SMTP Dispatch Failed] Code: ${errCode || 'UNKNOWN'}: ${sanitizedMsg}`,
   };
 }
 
 /**
- * Unified email dispatcher using the Resend SDK.
+ * Unified email dispatcher using Nodemailer with Gmail SMTP.
  */
 async function dispatchEmail(params: {
   to: string;
@@ -87,20 +169,26 @@ async function dispatchEmail(params: {
   text: string;
 }): Promise<EmailSendResult> {
   const normalizedTo = params.to.toLowerCase().trim();
-  const fromEmail = env.OTP_FROM_EMAIL || 'onboarding@resend.dev';
+  const isProd = env.NODE_ENV === 'production';
+  const isTestEnv = (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') && !isProd;
 
-  // In automated test environment, always mock successfully to store OTP in testEmailOtpStore
-  if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true' || env.NODE_ENV === 'test') {
+  // If a mock or custom transporter has been injected, prioritize using it
+  const activeTransporter = getMailTransporter();
+
+  // If running in automated tests without a custom transporter injected and not in production simulation, mock success safely
+  if (isTestEnv && !activeTransporter) {
     return {
       success: true,
       messageId: `test-mock-${Date.now()}`,
     };
   }
 
-  // Check if RESEND_API_KEY is configured
-  if (!env.RESEND_API_KEY || !env.RESEND_API_KEY.trim()) {
+  // Check if Gmail SMTP credentials are configured
+  const hasCredentials = Boolean(env.MAIL_USER?.trim() && env.MAIL_PASS?.trim());
+
+  if (!hasCredentials && !activeTransporter) {
     if (env.NODE_ENV === 'production') {
-      console.error('❌ [EmailService] Fatal: RESEND_API_KEY is not configured in production environment.');
+      console.error('❌ [EmailService] Fatal: MAIL_USER and MAIL_PASS are not configured in production environment.');
       return {
         success: false,
         code: 'EMAIL_SERVICE_NOT_CONFIGURED',
@@ -116,41 +204,32 @@ async function dispatchEmail(params: {
     };
   }
 
-  const client = getResendClient();
-  if (!client) {
+  const transporter = activeTransporter || getMailTransporter();
+  if (!transporter) {
     return {
       success: false,
       code: 'EMAIL_SERVICE_NOT_CONFIGURED',
-      error: 'Email delivery service client could not be initialized.',
+      error: 'Email delivery service transporter could not be initialized.',
     };
   }
 
   try {
-    const { data, error } = await client.emails.send({
-      from: fromEmail,
-      to: [normalizedTo],
+    const from = getFromAddress();
+    const info = await transporter.sendMail({
+      from,
+      to: normalizedTo,
       subject: params.subject,
       html: params.html,
       text: params.text,
     });
 
-    if (error) {
-      const classified = classifyEmailError(error);
-      console.error(`⚠️ [EmailService] ${classified.logDetails}`);
-      return {
-        success: false,
-        code: classified.code,
-        error: classified.userMessage,
-      };
-    }
-
     return {
       success: true,
-      messageId: data?.id,
+      messageId: info.messageId || `smtp-${Date.now()}`,
     };
   } catch (err: any) {
-    const classified = classifyEmailError(err);
-    console.error(`❌ [EmailService] Exception dispatching email: ${classified.logDetails}`);
+    const classified = classifySmtpError(err);
+    console.error(`❌ [EmailService] ${classified.logDetails}`);
     return {
       success: false,
       code: classified.code,
@@ -160,7 +239,7 @@ async function dispatchEmail(params: {
 }
 
 /**
- * Sends a branded 6-digit verification OTP email using Resend.
+ * Sends a branded 6-digit verification OTP email using Gmail SMTP via Nodemailer.
  */
 export async function sendVerificationOtpEmail(
   to: string,
@@ -264,7 +343,7 @@ Security Notice: Never share this code with anyone. M12 Expense Tracker will nev
 }
 
 /**
- * Sends a branded 6-digit password reset verification OTP email using Resend.
+ * Sends a branded 6-digit password reset verification OTP email using Gmail SMTP via Nodemailer.
  */
 export async function sendPasswordResetOtpEmail(
   to: string,

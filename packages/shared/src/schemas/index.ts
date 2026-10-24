@@ -482,6 +482,25 @@ export const resetChitFundFinancialsSchema = z.object({
   preserveCurrentBankBalance: z.boolean().default(true).optional(),
 });
 
+export const deleteAccountPermanentlySchema = z.object({
+  confirmationPhrase: z.literal('DELETE', {
+    errorMap: () => ({ message: 'Confirmation phrase must be exactly "DELETE"' }),
+  }),
+  password: z.string().optional(),
+});
+
+export const resetLendingBorrowingSchema = z.object({
+  confirmationPhrase: z.literal('RESET LENDING DATA', {
+    errorMap: () => ({ message: 'Confirmation phrase must be exactly "RESET LENDING DATA"' }),
+  }),
+});
+
+export const resetEmiSchema = z.object({
+  confirmationPhrase: z.literal('RESET EMI DATA', {
+    errorMap: () => ({ message: 'Confirmation phrase must be exactly "RESET EMI DATA"' }),
+  }),
+});
+
 // ==========================================
 // Lending & Borrowing Schemas
 // ==========================================

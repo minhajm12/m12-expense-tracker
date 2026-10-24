@@ -49,7 +49,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, existingUser.fullName);
-    if (!emailRes.success && (env.NODE_ENV === 'production' || emailRes.code === 'RESEND_SANDBOX_RESTRICTION')) {
+    if (!emailRes.success) {
       throw new AppError(emailRes.error || 'Failed to dispatch verification email', 500, emailRes.code || 'EMAIL_SEND_FAILED');
     }
 
@@ -93,7 +93,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   // do NOT leave a stranded, unverified user record in the database.
   if (requireVerification) {
     const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, validatedData.fullName);
-    if (!emailRes.success && (env.NODE_ENV === 'production' || emailRes.code === 'RESEND_SANDBOX_RESTRICTION')) {
+    if (!emailRes.success) {
       throw new AppError(emailRes.error || 'Failed to dispatch verification email', 500, emailRes.code || 'EMAIL_SEND_FAILED');
     }
 
@@ -321,7 +321,7 @@ export const resendEmailOtp = async (req: Request, res: Response): Promise<void>
   const rawOtp = crypto.randomInt(100000, 1000000).toString();
 
   const emailRes = await sendVerificationOtpEmail(normalizedEmail, rawOtp, user.fullName);
-  if (!emailRes.success && (env.NODE_ENV === 'production' || emailRes.code === 'RESEND_SANDBOX_RESTRICTION')) {
+  if (!emailRes.success) {
     sendError(
       res,
       emailRes.error || 'Failed to dispatch verification email. Please try again.',

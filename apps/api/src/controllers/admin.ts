@@ -382,7 +382,7 @@ export const getFeatureStatus = async (req: Request, res: Response): Promise<voi
       database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
       databaseHost: mongoose.connection.host || 'MongoDB Atlas',
       uptimeSeconds: Math.floor(process.uptime()),
-      emailServiceConfigured: Boolean(process.env.RESEND_API_KEY),
+      emailServiceConfigured: Boolean(process.env.MAIL_USER && process.env.MAIL_PASS),
       nodeVersion: process.version,
       timestamp: new Date().toISOString(),
     },

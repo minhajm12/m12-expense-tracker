@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createApp } from '../app';
 import { User } from '../models/User';
 import { UserRole } from '@finora/shared';
-import { testEmailOtpStore } from '../services/email';
+import { testEmailOtpStore, setMailTransporter, resetMailTransporter } from '../services/email';
+import type { Transporter } from 'nodemailer';
 
 describe('Auth & Email Service Integration Test Suite', () => {
   let mongoServer: MongoMemoryServer;
@@ -24,6 +25,7 @@ describe('Auth & Email Service Integration Test Suite', () => {
   });
 
   beforeEach(async () => {
+    resetMailTransporter();
     testEmailOtpStore.clear();
     await User.deleteMany({});
   });
@@ -302,5 +304,35 @@ describe('Auth & Email Service Integration Test Suite', () => {
     // Ensure password was not altered
     const user = await User.findOne({ email: 'registered@example.com' }).select('+password');
     expect(await user!.comparePassword('ExistingPassword123!')).toBe(true);
+  });
+
+  it('10. does not strand an unverified user record when SMTP delivery fails during registration', async () => {
+    // Inject failing transporter
+    const failingTransporter = {
+      sendMail: vi.fn().mockRejectedValue({
+        code: 'EAUTH',
+        responseCode: 535,
+        message: 'Invalid login or bad credentials',
+      }),
+    } as unknown as Transporter;
+
+    setMailTransporter(failingTransporter);
+
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'failed.smtp@example.com',
+        password: 'Password123!',
+        fullName: 'Failed SMTP',
+        requireVerification: true,
+      });
+
+    expect(res.status).toBe(500);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('SMTP_AUTH_FAILED');
+
+    // Confirm no user record was persisted in database
+    const user = await User.findOne({ email: 'failed.smtp@example.com' });
+    expect(user).toBeNull();
   });
 });

@@ -705,6 +705,11 @@ export const deleteInvestmentController = async (
 ): Promise<void> => {
   try {
     const userId = req.user!._id;
+
+    if (req.user?.modulePreferences?.investment === false) {
+      throw new AppError('Investment module is currently disabled for this account', 403, 'MODULE_DISABLED');
+    }
+
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -730,6 +735,11 @@ export const resetAllInvestmentsController = async (
 ): Promise<void> => {
   try {
     const userId = req.user!._id;
+
+    if (req.user?.modulePreferences?.investment === false) {
+      throw new AppError('Investment module is currently disabled for this account', 403, 'MODULE_DISABLED');
+    }
+
     const { confirmationPhrase } = req.body;
 
     if (confirmationPhrase !== 'RESET INVESTMENTS') {

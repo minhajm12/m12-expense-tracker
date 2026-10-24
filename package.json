@@ -22,8 +22,5 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
-  },
-  "dependencies": {
-    "resend": "^6.34.1"
   }
 }

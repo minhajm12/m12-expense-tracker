@@ -34,6 +34,7 @@ import {
   Repeat,
   Percent,
   TrendingUp,
+  Info,
 } from 'lucide-react';
 import {
   SUPPORTED_CURRENCIES,
@@ -663,6 +664,18 @@ function RegisterContent() {
                             )}
                           </div>
                           <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{mod.description}</p>
+                          {mod.key === 'chitFund' && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-2.5 p-2.5 rounded-md bg-muted/60 border border-border/70 text-[11px] text-muted-foreground leading-relaxed flex items-start gap-2 cursor-default select-text"
+                            >
+                              <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                              <span>
+                                <strong className="text-foreground font-medium">For internal chit fund management:</strong>{' '}
+                                Enable this feature only if you manage a group-based chit fund and track its collections, payouts, and related money in your own bank account. If you only want to track your personal income and expenses, you generally do not need to enable it.
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="shrink-0 ml-3 mt-1">

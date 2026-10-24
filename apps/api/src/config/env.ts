@@ -80,8 +80,9 @@ const envSchema = z.object({
     .default('m12_expense_tracker_secure_jwt_secret_key_at_least_32_chars!'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
-  RESEND_API_KEY: z.string().optional(),
-  OTP_FROM_EMAIL: z.string().default('onboarding@resend.dev'),
+  MAIL_USER: z.string().optional(),
+  MAIL_PASS: z.string().optional(),
+  OTP_FROM_EMAIL: z.string().optional(),
   APP_BASE_URL: z.string().default('http://localhost:3000'),
 });
 

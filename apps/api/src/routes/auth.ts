@@ -17,6 +17,7 @@ import {
 import { authenticate } from '../middleware/auth';
 import { asyncHandler } from '../middleware/async-handler';
 import { authRateLimiter } from '../middleware/rate-limiter';
+import { deleteAccountPermanently } from '../controllers/settings';
 
 export const authRouter = Router();
 
@@ -36,5 +37,7 @@ authRouter.get('/me', authenticate, asyncHandler(getMe));
 authRouter.patch('/me', authenticate, asyncHandler(updateProfile));
 authRouter.post('/change-password', authenticate, asyncHandler(changePassword));
 authRouter.post('/deactivate', authenticate, asyncHandler(deactivateAccount));
+authRouter.delete('/delete-account', authenticate, asyncHandler(deleteAccountPermanently));
+authRouter.delete('/me', authenticate, asyncHandler(deleteAccountPermanently));
 authRouter.post('/onboarding-finish', authenticate, asyncHandler(finishOnboarding));
 

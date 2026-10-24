@@ -6,10 +6,13 @@ import {
   updateModulePreferences,
   resetTransactions,
   resetAllFinancialData,
+  deleteAccountPermanently,
   resetChitWinnerMonth,
   resetAllChitWinners,
   getChitFundResetPreview,
   resetChitFundFinancials,
+  resetLendingBorrowing,
+  resetEmiData,
 } from '../controllers/settings';
 
 const router = Router();
@@ -29,9 +32,13 @@ router.put('/module-preferences', asyncHandler(updateModulePreferences));
 // Data Management & Reset
 router.post('/reset-transactions', asyncHandler(resetTransactions));
 router.post('/reset-all-financial-data', asyncHandler(resetAllFinancialData));
+router.post('/delete-account', asyncHandler(deleteAccountPermanently));
+router.delete('/delete-account', asyncHandler(deleteAccountPermanently));
 router.post('/reset-chit-winner-month', asyncHandler(resetChitWinnerMonth));
 router.post('/reset-all-chit-winners', asyncHandler(resetAllChitWinners));
 router.get('/chit-fund-reset-preview', asyncHandler(getChitFundResetPreview));
 router.post('/reset-chit-fund-financials', asyncHandler(resetChitFundFinancials));
+router.post('/reset-lending-borrowing', asyncHandler(resetLendingBorrowing));
+router.post('/reset-emi', asyncHandler(resetEmiData));
 
 export default router;

@@ -13,10 +13,17 @@ import { ChitFundAdjustment } from '../models/ChitFundAdjustment';
 import { ChitFundCycle } from '../models/ChitFundCycle';
 import { Budget } from '../models/Budget';
 import { RecurringTransaction } from '../models/RecurringTransaction';
+import { RecurringOccurrence } from '../models/RecurringOccurrence';
 import { Category } from '../models/Category';
 import { LendingBorrowing } from '../models/LendingBorrowing';
 import { CashAccount } from '../models/CashAccount';
+import { Investment } from '../models/Investment';
+import { InvestmentContribution } from '../models/InvestmentContribution';
+import { EmiRule } from '../models/EmiRule';
+import { EmiOccurrence } from '../models/EmiOccurrence';
+import { AuditLog } from '../models/AuditLog';
 import { sendSuccess, sendError } from '../utils/api-response';
+import { clearAuthCookie } from '../utils/token';
 import {
   updateModulePreferencesSchema,
   resetTransactionsSchema,
@@ -24,11 +31,15 @@ import {
   resetChitWinnerMonthSchema,
   resetAllChitWinnersSchema,
   resetChitFundFinancialsSchema,
+  deleteAccountPermanentlySchema,
+  resetLendingBorrowingSchema,
+  resetEmiSchema,
   TransactionType,
 } from '@finora/shared';
 import {
   recalculateAccountBalance,
   recalculateCreditCardOutstanding,
+  calculateCashInHand,
 } from '../services/financial';
 
 export const getModulePreferences = async (req: Request, res: Response): Promise<void> => {
@@ -254,8 +265,13 @@ export const resetAllFinancialData = async (req: Request, res: Response): Promis
     ChitFund.deleteMany({ userId }),
     Budget.deleteMany({ userId }),
     RecurringTransaction.deleteMany({ userId }),
+    RecurringOccurrence.deleteMany({ userId }),
     Category.deleteMany({ userId, isCustom: true }),
     LendingBorrowing.deleteMany({ userId }),
+    Investment.deleteMany({ userId }),
+    InvestmentContribution.deleteMany({ userId }),
+    EmiRule.deleteMany({ userId }),
+    EmiOccurrence.deleteMany({ userId }),
     CashAccount.deleteMany({ userId }),
   ]);
 
@@ -273,10 +289,75 @@ export const resetAllFinancialData = async (req: Request, res: Response): Promis
 };
 
 /**
+ * Permanent Account Deletion
+ * Permanently and irreversibly removes the user's account and all associated personal and financial records.
+ */
+export const deleteAccountPermanently = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!._id;
+  const validated = deleteAccountPermanentlySchema.parse(req.body);
+
+  const user = await User.findById(userId).select('+password');
+  if (!user) {
+    sendError(res, 'User not found', 404, 'USER_NOT_FOUND');
+    return;
+  }
+
+  if (validated.password && user.password) {
+    const match = await bcrypt.compare(validated.password, user.password);
+    if (!match) {
+      sendError(res, 'Password confirmation failed. Incorrect password.', 401, 'INVALID_PASSWORD');
+      return;
+    }
+  }
+
+  // Atomic wipe of all records belonging to this user across every collection
+  await Promise.all([
+    Transaction.deleteMany({ userId }),
+    CreditCardStatement.deleteMany({ userId }),
+    CreditCard.deleteMany({ userId }),
+    BankAccount.deleteMany({ userId }),
+    CashAccount.deleteMany({ userId }),
+    ChitFundCollection.deleteMany({ userId }),
+    ChitFundPayout.deleteMany({ userId }),
+    ChitFundAdjustment.deleteMany({ userId }),
+    ChitFundCycle.deleteMany({ userId }),
+    ChitFundMember.deleteMany({ userId }),
+    ChitFund.deleteMany({ userId }),
+    Budget.deleteMany({ userId }),
+    RecurringTransaction.deleteMany({ userId }),
+    RecurringOccurrence.deleteMany({ userId }),
+    Category.deleteMany({ userId, isCustom: true }),
+    LendingBorrowing.deleteMany({ userId }),
+    Investment.deleteMany({ userId }),
+    InvestmentContribution.deleteMany({ userId }),
+    EmiRule.deleteMany({ userId }),
+    EmiOccurrence.deleteMany({ userId }),
+    AuditLog.deleteMany({ userId }),
+  ]);
+
+  // Permanently delete user record
+  await User.deleteOne({ _id: userId });
+
+  clearAuthCookie(res);
+
+  sendSuccess(
+    res,
+    { deletedUserId: userId.toString(), accountPermanentlyDeleted: true },
+    'Your account and all associated personal and financial records have been permanently deleted.'
+  );
+};
+
+/**
  * Option A — Reset Chit Winner for a Selected Month (Settings -> Data Management)
  */
 export const resetChitWinnerMonth = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
+
+  if (req.user?.modulePreferences?.chitFund === false) {
+    sendError(res, 'Chit Fund module is currently disabled for this account', 403, 'MODULE_DISABLED');
+    return;
+  }
+
   const validated = resetChitWinnerMonthSchema.parse(req.body);
 
   let fundId = validated.chitFundId;
@@ -372,6 +453,12 @@ export const resetChitWinnerMonth = async (req: Request, res: Response): Promise
  */
 export const resetAllChitWinners = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
+
+  if (req.user?.modulePreferences?.chitFund === false) {
+    sendError(res, 'Chit Fund module is currently disabled for this account', 403, 'MODULE_DISABLED');
+    return;
+  }
+
   const validated = resetAllChitWinnersSchema.parse(req.body);
 
   let fundId = validated.chitFundId;
@@ -455,6 +542,12 @@ export const resetAllChitWinners = async (req: Request, res: Response): Promise<
  */
 export const getChitFundResetPreview = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
+
+  if (req.user?.modulePreferences?.chitFund === false) {
+    sendError(res, 'Chit Fund module is currently disabled for this account', 403, 'MODULE_DISABLED');
+    return;
+  }
+
   const fund = await ChitFund.findOne({ userId });
   if (!fund) {
     sendError(res, 'Chit fund not found', 404, 'CHIT_FUND_NOT_FOUND');
@@ -511,6 +604,12 @@ export const getChitFundResetPreview = async (req: Request, res: Response): Prom
  */
 export const resetChitFundFinancials = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
+
+  if (req.user?.modulePreferences?.chitFund === false) {
+    sendError(res, 'Chit Fund module is currently disabled for this account', 403, 'MODULE_DISABLED');
+    return;
+  }
+
   const validated = resetChitFundFinancialsSchema.parse(req.body);
 
   let fundId = validated.chitFundId;
@@ -614,6 +713,79 @@ export const resetChitFundFinancials = async (req: Request, res: Response): Prom
       backupSnapshotSummary: backupSnapshot.counts,
     },
     'Chit fund financial records have been completely reset. All members are preserved and standardized to 1 chit @ ₹5,000/mo.'
+  );
+};
+
+/**
+ * Reset Lending & Borrowing Data
+ * Completely deletes all lending, borrowing, and repayment records for the authenticated user,
+ * then recalculates bank balances and cash in hand.
+ */
+export const resetLendingBorrowing = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!._id;
+
+  if (req.user?.modulePreferences?.lendingBorrowing === false) {
+    sendError(res, 'Lending and Borrowing module is currently disabled for this account', 403, 'MODULE_DISABLED');
+    return;
+  }
+
+  resetLendingBorrowingSchema.parse(req.body);
+
+  const deleteResult = await LendingBorrowing.deleteMany({ userId });
+
+  // Recalculate all bank account balances and cash in hand for this user
+  const userAccounts = await BankAccount.find({ userId });
+  for (const acc of userAccounts) {
+    await recalculateAccountBalance(acc._id.toString(), userId);
+  }
+  await calculateCashInHand(userId);
+
+  sendSuccess(
+    res,
+    { deletedCount: deleteResult.deletedCount },
+    'All lending and borrowing records have been safely reset. Account and cash balances have been updated.'
+  );
+};
+
+/**
+ * Reset EMI Data
+ * Completely deletes all EMI loan rules, installment occurrences, and linked transactions for the authenticated user,
+ * then recalculates bank balances and credit card outstandings.
+ */
+export const resetEmiData = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!._id;
+
+  if (req.user?.modulePreferences?.emi === false) {
+    sendError(res, 'EMI Management module is currently disabled for this account', 403, 'MODULE_DISABLED');
+    return;
+  }
+
+  resetEmiSchema.parse(req.body);
+
+  const [occResult, txResult, ruleResult] = await Promise.all([
+    EmiOccurrence.deleteMany({ userId }),
+    Transaction.deleteMany({ userId, emiRuleId: { $exists: true } }),
+    EmiRule.deleteMany({ userId }),
+  ]);
+
+  // Recalculate affected bank accounts and credit cards
+  const userAccounts = await BankAccount.find({ userId });
+  for (const acc of userAccounts) {
+    await recalculateAccountBalance(acc._id.toString(), userId);
+  }
+  const userCards = await CreditCard.find({ userId });
+  for (const card of userCards) {
+    await recalculateCreditCardOutstanding(card._id.toString(), userId);
+  }
+
+  sendSuccess(
+    res,
+    {
+      deletedRulesCount: ruleResult.deletedCount,
+      deletedOccurrencesCount: occResult.deletedCount,
+      deletedTransactionsCount: txResult.deletedCount,
+    },
+    'All EMI loan rules, installments, and schedule records have been safely reset.'
   );
 };
 

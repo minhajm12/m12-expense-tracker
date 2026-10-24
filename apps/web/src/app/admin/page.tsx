@@ -386,7 +386,7 @@ export default function AdminPage() {
               {systemHealth?.emailServiceConfigured ? 'Configured' : 'Dev Mock'}
             </span>
             <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary">
-              Resend
+              Gmail SMTP
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground mt-1">
