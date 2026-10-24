@@ -8,7 +8,7 @@ export const sendSuccess = <T>(
   statusCode: number = 200,
   meta?: ApiResponse['meta']
 ): Response => {
-  const payload: ApiResponse<T> = {
+  const payload: any = {
     success: true,
     data,
     ...(message && { message }),
@@ -17,6 +17,10 @@ export const sendSuccess = <T>(
       ...meta,
     },
   };
+  // If data object contains a token (e.g. login, verify-otp, register), also expose top-level token
+  if (data && typeof data === 'object' && 'token' in (data as Record<string, unknown>)) {
+    payload.token = (data as Record<string, unknown>).token;
+  }
   return res.status(statusCode).json(payload);
 };
 

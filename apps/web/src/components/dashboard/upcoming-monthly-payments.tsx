@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useDataSync } from '@/lib/data-sync';
+import { authFetch, getApiUrl } from '@/lib/api-client';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,14 +62,10 @@ export function UpcomingMonthlyPayments() {
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState<'all' | 'recurring' | 'emi' | 'investment' | 'unpaid' | 'paid'>('all');
 
-  const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
   const fetchForecast = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/v1/analytics/upcoming-forecast?month=${selectedMonth}`, {
-        credentials: 'include',
-      });
+      const res = await authFetch(`${getApiUrl()}/api/v1/analytics/upcoming-forecast?month=${selectedMonth}`);
       const json = await res.json();
       if (res.ok && json.success) {
         setForecast(json.data);

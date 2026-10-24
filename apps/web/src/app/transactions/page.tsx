@@ -46,6 +46,7 @@ import {
 } from '@finora/shared';
 import { RecordTransactionModal } from '@/components/transactions/record-transaction-modal';
 import { emitDataChange, useDataSync } from '@/lib/data-sync';
+import { authFetch, getApiUrl } from '@/lib/api-client';
 
 export default function TransactionsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -149,8 +150,6 @@ export default function TransactionsPage() {
   const [destAccountId, setDestAccountId] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
   const [transferNotes, setTransferNotes] = useState('');
-
-  const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   const fetchData = async (targetPage = 1, append = false) => {
     if (abortControllerRef.current) {

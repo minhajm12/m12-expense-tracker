@@ -3,6 +3,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserProfile } from '@finora/shared';
 import { toast } from '@/components/ui/toast';
+import {
+  getAuthToken,
+  setAuthToken,
+  clearAuthToken,
+  getApiUrl,
+  installAuthFetchInterceptor,
+} from './api-client';
+
+// Ensure fetch interceptor is active for all client-side requests
+if (typeof window !== 'undefined') {
+  installAuthFetchInterceptor();
+}
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -61,8 +73,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     lastRefreshTimeRef.current = now;
 
     try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${getApiUrl()}/api/v1/auth/me`, {
         method: 'GET',
+        headers,
         credentials: 'include',
         cache: 'no-store',
       });
@@ -74,10 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       } else if (res.status === 401 || res.status === 403) {
-        // Explicitly unauthenticated or revoked credentials
+        // Explicitly unauthenticated or revoked credentials verified by server
+        clearAuthToken();
         setUser(null);
       } else if (res.status === 429) {
-        // Rate limited — do NOT log out! The user's cookie/session remains valid.
+        // Rate limited — do NOT log out! The user's token/session remains valid.
         console.warn('[Auth] Rate limited checking session status. Preserving active session.');
       }
       // On 5xx or transient errors, do not log user out if already authenticated
@@ -108,8 +128,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const json = await res.json();
       if (res.ok && json.success) {
-        setUser(json.data.user);
-        toast.success(`Welcome back, ${json.data.user.fullName}!`);
+        // Extract token from real API response structure (top-level or inside data property)
+        const token = json.token || json.data?.token;
+        if (token && typeof token === 'string') {
+          setAuthToken(token);
+        }
+        setUser(json.data?.user || json.data);
+        toast.success(`Welcome back, ${json.data?.user?.fullName || 'User'}!`);
         return { success: true };
       } else {
         const msg = json.error?.message || 'Login failed';
@@ -148,6 +173,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const json = await res.json();
       if (res.ok && json.success) {
+        const token = json.token || json.data?.token;
+        if (token && typeof token === 'string') {
+          setAuthToken(token);
+        }
         if (json.data?.requiresVerification) {
           return { success: true, requiresVerification: true, data: json.data };
         }
@@ -183,6 +212,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const json = await res.json();
       if (res.ok && json.success) {
+        const token = json.token || json.data?.token;
+        if (token && typeof token === 'string') {
+          setAuthToken(token);
+        }
         if (json.data?.user) {
           setUser(json.data.user);
         }
@@ -242,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const json = await res.json();
       if (res.ok && json.success) {
+        clearAuthToken();
         setUser(null); // Session cleared by backend requirement
         return { success: true };
       } else {
@@ -333,6 +367,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore network failure on logout
     } finally {
+      clearAuthToken();
       setUser(null);
       toast.info('You have been logged out.');
     }

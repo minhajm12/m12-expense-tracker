@@ -10,6 +10,8 @@ export interface TokenPayload {
 }
 
 export const AUTH_COOKIE_NAME = 'm12_expense_tracker_token';
+export const AUTH_TOKEN_KEY = 'm12_expense_tracker_token';
+export const LEGACY_AUTH_TOKEN_KEY = 'finora_token';
 
 export const signToken = (payload: TokenPayload): string => {
   return jwt.sign(payload, env.JWT_SECRET, {
@@ -33,7 +35,7 @@ export const sendAuthCookie = (res: Response, token: string): void => {
   res.cookie(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge,
     path: '/',
   });
@@ -44,7 +46,7 @@ export const clearAuthCookie = (res: Response): void => {
   const cookieOptions = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
     path: '/',
   };
   res.clearCookie(AUTH_COOKIE_NAME, cookieOptions);

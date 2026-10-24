@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { formatCurrency, TransactionType } from '@finora/shared';
+import { authFetch, getApiUrl } from '@/lib/api-client';
 import { RecordTransactionModal } from '@/components/transactions/record-transaction-modal';
 import { UpcomingMonthlyPayments } from '@/components/dashboard/upcoming-monthly-payments';
 import {
@@ -144,8 +145,7 @@ export default function DashboardPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${getApiUrl()}/api/v1/analytics/dashboard?period=${period}`, {
-        credentials: 'include',
+      const res = await authFetch(`${getApiUrl()}/api/v1/analytics/dashboard?period=${period}`, {
         signal: controller.signal,
       });
       const json = await res.json();

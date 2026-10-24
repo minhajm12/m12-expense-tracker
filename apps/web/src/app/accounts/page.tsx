@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { BankAccount, AccountType, formatCurrency, ChitFundSummary, TotalCashSummary } from '@finora/shared';
 import { emitDataChange, useDataSync } from '@/lib/data-sync';
+import { authFetch, getApiUrl } from '@/lib/api-client';
 
 export default function AccountsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -77,16 +78,12 @@ export default function AccountsPage() {
     action: 'create' | 'update';
   } | null>(null);
 
-  const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
   const fetchChitFundSummary = async () => {
     try {
-      const fundRes = await fetch(`${getApiUrl()}/api/v1/chit-funds`, { credentials: 'include' });
+      const fundRes = await authFetch(`${getApiUrl()}/api/v1/chit-funds`);
       const fundJson = await fundRes.json();
       if (fundRes.ok && fundJson.success && fundJson.data?.id) {
-        const summaryRes = await fetch(`${getApiUrl()}/api/v1/chit-funds/${fundJson.data.id}/summary`, {
-          credentials: 'include',
-        });
+        const summaryRes = await authFetch(`${getApiUrl()}/api/v1/chit-funds/${fundJson.data.id}/summary`);
         const summaryJson = await summaryRes.json();
         if (summaryRes.ok && summaryJson.success) {
           setChitFundSummary(summaryJson.data);
@@ -99,9 +96,7 @@ export default function AccountsPage() {
 
   const fetchTotalCash = async () => {
     try {
-      const res = await fetch(`${getApiUrl()}/api/v1/accounts/total-cash`, {
-        credentials: 'include',
-      });
+      const res = await authFetch(`${getApiUrl()}/api/v1/accounts/total-cash`);
       const json = await res.json();
       if (res.ok && json.success) {
         setTotalCashSummary(json.data);

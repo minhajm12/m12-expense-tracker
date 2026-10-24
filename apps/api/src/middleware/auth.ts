@@ -19,11 +19,15 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // 1. Extract token from HTTP-only cookie or Authorization header
-    let token = req.cookies?.[AUTH_COOKIE_NAME] || req.cookies?.['finora_token'];
+    // 1. Extract token from Authorization header or HTTP-only cookie
+    let token: string | undefined;
 
-    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-      token = req.headers.authorization.split(' ')[1];
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.slice(7).trim();
+    } else if (req.cookies?.[AUTH_COOKIE_NAME]) {
+      token = req.cookies[AUTH_COOKIE_NAME];
+    } else if (req.cookies?.['finora_token']) {
+      token = req.cookies['finora_token'];
     }
 
     if (!token) {
@@ -81,10 +85,14 @@ export const optionalAuthenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    let token = req.cookies?.[AUTH_COOKIE_NAME] || req.cookies?.['finora_token'];
+    let token: string | undefined;
 
-    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-      token = req.headers.authorization.split(' ')[1];
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.slice(7).trim();
+    } else if (req.cookies?.[AUTH_COOKIE_NAME]) {
+      token = req.cookies[AUTH_COOKIE_NAME];
+    } else if (req.cookies?.['finora_token']) {
+      token = req.cookies['finora_token'];
     }
 
     if (token) {
