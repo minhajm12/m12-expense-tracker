@@ -220,6 +220,7 @@ export const baseTransactionSchema = z.object({
   discountType: z.string().max(50).optional(),
   discountNotes: z.string().max(500).optional(),
   isExcludedFromBudget: z.boolean().optional(),
+  isPastRecorded: z.boolean().optional().default(false),
 });
 
 export const createTransactionSchema = baseTransactionSchema.refine(
@@ -684,6 +685,28 @@ export const payEmiSchema = z.object({
 export const updateHistoricalInstallmentSchema = z.object({
   actualAmount: z.number().positive('Actual amount must be positive'),
   notes: z.string().max(500).optional(),
+});
+
+// ==========================================
+// Pass-Through Money Schemas
+// ==========================================
+
+export const recordPassThroughReceivedSchema = z.object({
+  senderName: z.string().min(1, 'Sender name is required').max(100).trim(),
+  receivedAmount: z.number().positive('Received amount must be greater than 0'),
+  receivedDate: flexibleDateSchema,
+  receivingBankAccountId: z.string().min(1, 'Bank account is required'),
+  reference: z.string().max(100).optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+export const recordPassThroughSendSchema = z.object({
+  recipientName: z.string().min(1, 'Recipient name is required').max(100).trim(),
+  amount: z.number().positive('Amount sent must be greater than 0'),
+  date: flexibleDateSchema,
+  bankAccountId: z.string().min(1, 'Bank account is required'),
+  reference: z.string().max(100).optional(),
+  notes: z.string().max(1000).optional(),
 });
 
 

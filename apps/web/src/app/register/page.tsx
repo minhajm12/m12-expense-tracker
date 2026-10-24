@@ -10,6 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Logo } from '@/components/ui/logo';
 import { toast } from '@/components/ui/toast';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Coins,
   Eye,
   EyeOff,
@@ -165,6 +172,17 @@ function RegisterContent() {
   // Global UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isCreditCardEnabled = modulePreferences.creditCards !== false;
+  const totalSteps = isCreditCardEnabled ? 6 : 5;
+  const displayedStepNumber = !isCreditCardEnabled && step === 6 ? 5 : step;
+
+  // If user disables credit cards while on step 5, skip to step 6 safely
+  useEffect(() => {
+    if (!isCreditCardEnabled && step === 5) {
+      setStep(6);
+    }
+  }, [isCreditCardEnabled, step]);
 
   // Handle query params on mount (e.g. ?step=2&email=user@example.com from Login redirect)
   useEffect(() => {
@@ -351,7 +369,7 @@ function RegisterContent() {
     const payload = {
       modulePreferences,
       bankAccounts,
-      creditCards,
+      creditCards: isCreditCardEnabled ? creditCards : [],
     };
 
     const result = await finishOnboarding(payload);
@@ -372,23 +390,23 @@ function RegisterContent() {
         <div className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between mb-3 text-xs font-medium text-muted-foreground">
             <span className="flex items-center gap-1.5 font-semibold text-foreground">
-              Step {step} of 6
+              Step {displayedStepNumber} of {totalSteps}
             </span>
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground/80">
               {step === 1 && '1. Account Creation'}
               {step === 2 && '2. Email OTP Verification'}
               {step === 3 && '3. Feature Modules'}
               {step === 4 && '4. Bank Accounts'}
-              {step === 5 && '5. Credit Cards'}
-              {step === 6 && '6. Review & Launch'}
+              {step === 5 && isCreditCardEnabled && '5. Credit Cards'}
+              {step === 6 && (isCreditCardEnabled ? '6. Review & Launch' : '5. Review & Launch')}
             </span>
           </div>
-          <div className="grid grid-cols-6 gap-1.5 h-1.5 w-full bg-muted/40 rounded-full overflow-hidden">
-            {[1, 2, 3, 4, 5, 6].map((s) => (
+          <div className={`grid ${isCreditCardEnabled ? 'grid-cols-6' : 'grid-cols-5'} gap-1.5 h-1.5 w-full bg-muted/40 rounded-full overflow-hidden`}>
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
               <div
                 key={s}
                 className={`h-full transition-all duration-300 ${
-                  s <= step ? 'bg-primary' : 'bg-muted/20'
+                  s <= displayedStepNumber ? 'bg-primary' : 'bg-muted/20'
                 }`}
               />
             ))}
@@ -452,17 +470,18 @@ function RegisterContent() {
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">Default Currency</label>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {SUPPORTED_CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} ({c.symbol}) — {c.name}
-                    </option>
-                  ))}
-                </select>
+                <Select value={currency} onValueChange={(val) => setCurrency(val)}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select Currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.code} ({c.symbol}) — {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -764,16 +783,20 @@ function RegisterContent() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-[11px] font-medium text-muted-foreground">Account Type</label>
-                    <select
+                    <Select
                       value={newAccountType}
-                      onChange={(e) => setNewAccountType(e.target.value as AccountType)}
-                      className="flex h-8 w-full rounded border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      onValueChange={(val) => setNewAccountType(val as AccountType)}
                     >
-                      <option value={AccountType.SAVINGS}>Savings</option>
-                      <option value={AccountType.CURRENT}>Current</option>
-                      <option value={AccountType.SALARY}>Salary</option>
-                      <option value={AccountType.CASH}>Cash in Hand</option>
-                    </select>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Account Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={AccountType.SAVINGS}>Savings</SelectItem>
+                        <SelectItem value={AccountType.CURRENT}>Current</SelectItem>
+                        <SelectItem value={AccountType.SALARY}>Salary</SelectItem>
+                        <SelectItem value={AccountType.CASH}>Cash in Hand</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[11px] font-medium text-muted-foreground">Opening Balance (₹)</label>
@@ -882,7 +905,7 @@ function RegisterContent() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setStep(5)}
+                  onClick={() => setStep(isCreditCardEnabled ? 5 : 6)}
                   className="text-xs"
                 >
                   Skip for Now
@@ -890,7 +913,7 @@ function RegisterContent() {
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() => setStep(5)}
+                  onClick={() => setStep(isCreditCardEnabled ? 5 : 6)}
                   className="text-xs gap-1.5"
                 >
                   Continue <ArrowRight className="h-3.5 w-3.5" />
@@ -948,16 +971,20 @@ function RegisterContent() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-[11px] font-medium text-muted-foreground">Network</label>
-                    <select
+                    <Select
                       value={newNetwork}
-                      onChange={(e) => setNewNetwork(e.target.value as CreditCardNetwork)}
-                      className="flex h-8 w-full rounded border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      onValueChange={(val) => setNewNetwork(val as CreditCardNetwork)}
                     >
-                      <option value={CreditCardNetwork.VISA}>Visa</option>
-                      <option value={CreditCardNetwork.MASTERCARD}>Mastercard</option>
-                      <option value={CreditCardNetwork.RUPAY}>RuPay</option>
-                      <option value={CreditCardNetwork.AMEX}>Amex</option>
-                    </select>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Network" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={CreditCardNetwork.VISA}>Visa</SelectItem>
+                        <SelectItem value={CreditCardNetwork.MASTERCARD}>Mastercard</SelectItem>
+                        <SelectItem value={CreditCardNetwork.RUPAY}>RuPay</SelectItem>
+                        <SelectItem value={CreditCardNetwork.AMEX}>Amex</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -1189,22 +1216,24 @@ function RegisterContent() {
               </div>
 
               {/* Credit Cards Summary */}
-              <div className="rounded-lg border border-border p-3 bg-muted/20 text-xs space-y-1">
-                <div className="flex items-center justify-between font-semibold">
-                  <span className="text-foreground">Credit Cards</span>
-                  <span className="text-muted-foreground font-normal">
-                    {creditCards.length === 0 ? 'None (Skipped)' : `${creditCards.length} Card(s)`}
-                  </span>
+              {isCreditCardEnabled ? (
+                <div className="rounded-lg border border-border p-3 bg-muted/20 text-xs space-y-1">
+                  <div className="flex items-center justify-between font-semibold">
+                    <span className="text-foreground">Credit Cards</span>
+                    <span className="text-muted-foreground font-normal">
+                      {creditCards.length === 0 ? 'None (Skipped)' : `${creditCards.length} Card(s)`}
+                    </span>
+                  </div>
+                  {creditCards.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground font-mono">
+                      Total Credit Limit: ₹
+                      {creditCards
+                        .reduce((s, c) => s + c.creditLimit, 0)
+                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                  )}
                 </div>
-                {creditCards.length > 0 && (
-                  <p className="text-[11px] text-muted-foreground font-mono">
-                    Total Credit Limit: ₹
-                    {creditCards
-                      .reduce((s, c) => s + c.creditLimit, 0)
-                      .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                )}
-              </div>
+              ) : null}
             </CardContent>
 
             <CardFooter className="flex items-center justify-between pt-2">
@@ -1212,7 +1241,7 @@ function RegisterContent() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setStep(5)}
+                onClick={() => setStep(isCreditCardEnabled ? 5 : 4)}
                 className="text-xs text-muted-foreground gap-1"
               >
                 <ArrowLeft className="h-3.5 w-3.5" /> Back

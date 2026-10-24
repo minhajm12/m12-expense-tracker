@@ -43,6 +43,7 @@ export interface ITransaction extends Document {
   discountType?: string;
   discountNotes?: string;
   isExcludedFromBudget: boolean;
+  isPastRecorded?: boolean;
   isUntrackedCash?: boolean;
   cashSource?: 'tracked_personal_cash' | 'untracked_cash';
   createdAt: Date;
@@ -220,6 +221,11 @@ const TransactionSchema = new Schema<ITransaction>(
     isExcludedFromBudget: {
       type: Boolean,
       default: false,
+    },
+    isPastRecorded: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
     isUntrackedCash: {
       type: Boolean,

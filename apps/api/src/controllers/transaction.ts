@@ -453,10 +453,17 @@ export const createTransaction = async (req: Request, res: Response): Promise<vo
   }
 
   // If charging a designated Chit Fund account with a personal expense or investment, ensure personal funds suffice
+  const isPastRecorded =
+    validated.isPastRecorded === true &&
+    (validated.type === TransactionType.INCOME ||
+      validated.type === TransactionType.EXPENSE ||
+      validated.type === TransactionType.INVESTMENT);
+
   if (
     bankAccount &&
     bankAccount.isChitFundAccount &&
-    (validated.type === TransactionType.EXPENSE || validated.type === TransactionType.INVESTMENT)
+    (validated.type === TransactionType.EXPENSE || validated.type === TransactionType.INVESTMENT) &&
+    !isPastRecorded
   ) {
     const [collections, payouts, adjustments] = await Promise.all([
       ChitFundCollection.find({ userId, receivingBankAccountId: bankAccount._id }),
@@ -500,6 +507,7 @@ export const createTransaction = async (req: Request, res: Response): Promise<vo
     status: validated.status || TransactionStatus.COMPLETED,
     idempotencyKey: validated.idempotencyKey,
     isExcludedFromBudget: validated.isExcludedFromBudget || false,
+    isPastRecorded,
   });
 
   // If completed and linked to a bank account, authoritatively update balance using safe math
@@ -507,16 +515,9 @@ export const createTransaction = async (req: Request, res: Response): Promise<vo
     await recalculateAccountBalance(bankAccount._id, userId);
   }
 
-  // If completed and linked to a credit card, update card outstanding atomically
+  // If completed and linked to a credit card, recalculate credit card outstanding authoritatively
   if (creditCard && transaction.status === TransactionStatus.COMPLETED) {
-    if (transaction.type === TransactionType.EXPENSE || transaction.type === TransactionType.INVESTMENT) {
-      creditCard.currentOutstanding = safeAdd(creditCard.currentOutstanding, transaction.amount);
-      creditCard.availableCredit = Math.max(0, safeSubtract(creditCard.creditLimit, creditCard.currentOutstanding));
-    } else if (transaction.type === TransactionType.CREDIT_CARD_REFUND) {
-      creditCard.currentOutstanding = Math.max(0, safeSubtract(creditCard.currentOutstanding, transaction.amount));
-      creditCard.availableCredit = Math.min(creditCard.creditLimit, safeAdd(creditCard.availableCredit, transaction.amount));
-    }
-    await creditCard.save();
+    await recalculateCreditCardOutstanding(creditCard._id, userId);
   }
 
   // If completed and cash payment method, recalculate personal cash in hand
@@ -606,6 +607,18 @@ export const updateTransaction = async (req: Request, res: Response): Promise<vo
   if (validated.tags !== undefined) transaction.tags = validated.tags;
   if (validated.notes !== undefined) transaction.notes = validated.notes;
   if (validated.status !== undefined) transaction.status = validated.status;
+  if (validated.isPastRecorded !== undefined) {
+    const effectiveType = validated.type || transaction.type;
+    if (
+      effectiveType === TransactionType.INCOME ||
+      effectiveType === TransactionType.EXPENSE ||
+      effectiveType === TransactionType.INVESTMENT
+    ) {
+      transaction.isPastRecorded = validated.isPastRecorded;
+    } else {
+      transaction.isPastRecorded = false;
+    }
+  }
 
   await transaction.save();
 

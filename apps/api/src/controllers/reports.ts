@@ -5,6 +5,7 @@ import {
   getFinancialReport,
   generateTransactionsCsv,
   getMonthlyIncomeSummary,
+  getMonthlyExpensesSummary,
   getAvailableIncomeCategories,
   updateConfiguredIncomeCategories,
 } from '../services/reports';
@@ -97,6 +98,25 @@ export const getMonthlyIncomeReport = async (
         : getCycleKey(new Date(), 'Asia/Kolkata');
 
     const data = await getMonthlyIncomeSummary(userId, targetMonth);
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getMonthlyExpensesReport = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = new mongoose.Types.ObjectId(req.user!._id);
+    const targetMonth =
+      typeof req.query.month === 'string' && /^\d{4}-\d{2}$/.test(req.query.month)
+        ? req.query.month
+        : getCycleKey(new Date(), 'Asia/Kolkata');
+
+    const data = await getMonthlyExpensesSummary(userId, targetMonth);
     res.status(200).json({ success: true, data });
   } catch (err) {
     next(err);

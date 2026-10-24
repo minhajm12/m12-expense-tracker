@@ -23,6 +23,21 @@ const ROUTE_MODULE_MAP: Record<string, ModuleConfig> = {
     name: 'Expense Tracker',
     description: 'Record income, expenses, and financial transactions.',
   },
+  '/expenses': {
+    key: 'expenseTracker',
+    name: 'Expense Reporting',
+    description: 'Analyse monthly spending patterns and expense breakdowns.',
+  },
+  '/income': {
+    key: 'expenseTracker',
+    name: 'Income Reporting',
+    description: 'Analyse monthly income trends and category breakdowns.',
+  },
+  '/pass-through': {
+    key: 'expenseTracker',
+    name: 'Pass-Through Money',
+    description: 'Manage pass-through collections and transfers held on behalf of others.',
+  },
   '/emi': {
     key: 'emi',
     name: 'EMI Management',

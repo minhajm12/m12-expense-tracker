@@ -170,6 +170,7 @@ export interface Transaction {
   discountType?: string;
   discountNotes?: string;
   isExcludedFromBudget?: boolean;
+  isPastRecorded?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -585,6 +586,7 @@ export interface TotalCashSummary {
   totalOutstandingDebt: number;
   outstandingBorrowing: number;
   netTrackedPosition: number;
+  heldPassThroughFunds?: number;
   accounts: BankAccount[];
   adjustments?: PersonalCashAdjustment[];
 }
@@ -891,6 +893,167 @@ export interface FinancialReportData {
     amount: number;
     count: number;
   }>;
+}
+
+// Monthly Expenses Reporting Types
+export interface MonthlyExpenseTransaction {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  category: string;
+  paymentMethod: string;
+  paymentChannel?: string;
+  accountName?: string;
+  merchantOrRecipient?: string;
+  notes?: string;
+  isPastRecorded?: boolean;
+}
+
+export interface MonthlyExpenseCategoryBreakdown {
+  category: string;
+  amount: number;
+  transactionCount: number;
+  percentage: number;
+  transactions?: MonthlyExpenseTransaction[];
+}
+
+export interface MonthlyExpensesReportData {
+  month: string;
+  monthLabel: string;
+  totalExpenses: number;
+  transactionCount: number;
+  highestCategory: {
+    name: string;
+    amount: number;
+  } | null;
+  averageDailySpend: number;
+  daysInMonth: number;
+  categoryBreakdown: MonthlyExpenseCategoryBreakdown[];
+  dailySpendingTrend: Array<{
+    day: number;
+    date: string;
+    amount: number;
+  }>;
+  largestExpenses: MonthlyExpenseTransaction[];
+  allTransactions?: MonthlyExpenseTransaction[];
+  previousMonthComparison?: {
+    previousMonth: string;
+    previousTotal: number;
+    changeAmount: number;
+    changePercentage: number | null;
+  };
+}
+
+// Monthly Income Reporting Types
+export interface MonthlyIncomeCategoryBreakdown {
+  category: string;
+  amount: number;
+  transactionCount: number;
+  percentage: number;
+  isConfigured: boolean;
+  transactions?: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    date: string;
+    category?: string;
+    paymentMethod: string;
+    accountName?: string;
+    merchantOrRecipient?: string;
+    isPastRecorded?: boolean;
+  }>;
+}
+
+export interface MonthlyIncomeReportData {
+  month: string;
+  monthLabel: string;
+  totalMonthlyIncome: number;
+  allIncomeTotal: number;
+  salaryIncome: number;
+  freelanceIncome: number;
+  otherSelectedIncome: number;
+  qualifyingTransactionCount: number;
+  configuredCategories: string[];
+  categoryBreakdown: MonthlyIncomeCategoryBreakdown[];
+  previousMonthComparison?: {
+    previousMonth: string;
+    previousTotal: number;
+    changeAmount: number;
+    changePercentage: number | null;
+  };
+  trend: Array<{
+    month: string;
+    income: number;
+  }>;
+  transactionCount?: number;
+  highestCategory?: { name: string; amount: number } | null;
+  averageDailyIncome?: number;
+  daysInMonth?: number;
+  dailyIncomeTrend?: Array<{ day: number; date: string; amount: number }>;
+  largestIncomeEntries?: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    date: string;
+    category: string;
+    paymentMethod: string;
+    accountName?: string;
+    merchantOrRecipient?: string;
+    isPastRecorded?: boolean;
+  }>;
+  allTransactions?: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    date: string;
+    category: string;
+    paymentMethod: string;
+    accountName?: string;
+    merchantOrRecipient?: string;
+    isPastRecorded?: boolean;
+  }>;
+}
+
+// Pass-Through Money Types
+export type PassThroughStatus = 'pending' | 'partially_sent' | 'completed';
+
+export interface PassThroughSendItem {
+  id: string;
+  recipientName: string;
+  amount: number;
+  date: string;
+  bankAccountId: string;
+  bankAccountName?: string;
+  reference?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PassThroughRecordItem {
+  id: string;
+  userId: string;
+  senderName: string;
+  receivedAmount: number;
+  receivedDate: string;
+  receivingBankAccountId: string;
+  receivingBankAccountName?: string;
+  reference?: string;
+  notes?: string;
+  totalSentAmount: number;
+  outstandingAmount: number;
+  status: PassThroughStatus;
+  sends: PassThroughSendItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PassThroughOverview {
+  totalReceived: number;
+  totalSent: number;
+  totalOutstanding: number;
+  openCount: number;
+  completedCount: number;
 }
 
 

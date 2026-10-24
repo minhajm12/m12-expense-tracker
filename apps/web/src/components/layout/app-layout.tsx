@@ -179,14 +179,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <Sidebar className="fixed inset-y-0 left-0 z-40" />
       </div>
 
-      {/* Mobile Drawer Overlay */}
+      {/* Mobile & Tablet Drawer Overlay (available below lg: breakpoint) */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden animate-in fade-in-50"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm lg:hidden animate-in fade-in-50"
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
@@ -209,7 +209,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       )}
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col md:pl-64">
+      <div className="flex flex-1 flex-col lg:pl-64">
         <Header onMobileMenuToggle={() => setMobileMenuOpen(true)} />
         <main className="flex-1 p-4 md:p-8 max-w-[1600px] w-full mx-auto">
           <ModuleGuard>{children}</ModuleGuard>

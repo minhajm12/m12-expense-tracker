@@ -23,6 +23,9 @@ import {
   getLocalDateParts,
   DEFAULT_INCOME_CATEGORIES,
   InvestmentReportData,
+  MonthlyExpensesReportData,
+  MonthlyExpenseCategoryBreakdown,
+  MonthlyExpenseTransaction,
 } from '@finora/shared';
 
 export interface MonthlyIncomeCategoryBreakdown {
@@ -61,6 +64,31 @@ export interface MonthlyIncomeReportData {
   trend: Array<{
     month: string;
     income: number;
+  }>;
+  transactionCount?: number;
+  highestCategory?: { name: string; amount: number } | null;
+  averageDailyIncome?: number;
+  daysInMonth?: number;
+  dailyIncomeTrend?: Array<{ day: number; date: string; amount: number }>;
+  largestIncomeEntries?: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    date: string;
+    category: string;
+    paymentMethod: string;
+    accountName?: string;
+    merchantOrRecipient?: string;
+  }>;
+  allTransactions?: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    date: string;
+    category: string;
+    paymentMethod: string;
+    accountName?: string;
+    merchantOrRecipient?: string;
   }>;
 }
 
@@ -568,12 +596,29 @@ export async function getMonthlyIncomeSummary(
   const configuredSet = new Set(configuredCategories.map((c) => c.trim().toLowerCase()));
 
   // Query only genuine completed income transactions for the month in Asia/Kolkata
-  const transactions = await Transaction.find({
-    userId,
-    status: TransactionStatus.COMPLETED,
-    type: TransactionType.INCOME,
-    date: { $gte: startDate, $lte: endDate },
-  }).sort({ date: -1 });
+  const [transactions, bankAccounts] = await Promise.all([
+    Transaction.find({
+      userId,
+      status: TransactionStatus.COMPLETED,
+      type: TransactionType.INCOME,
+      date: { $gte: startDate, $lte: endDate },
+    }).sort({ date: -1 }),
+    BankAccount.find({ userId }),
+  ]);
+
+  const bankMap = new Map(bankAccounts.map((a) => [a._id.toString(), a.accountName]));
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dailyIncomeMap = new Map<number, number>();
+  const allFormattedTransactions: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    date: string;
+    category: string;
+    paymentMethod: string;
+    accountName?: string;
+    merchantOrRecipient?: string;
+  }> = [];
 
   const categoryMap = new Map<
     string,
@@ -588,6 +633,9 @@ export async function getMonthlyIncomeSummary(
   let qualifyingTransactionCount = 0;
 
   for (const tx of transactions) {
+    const day = getLocalDateParts(tx.date, 'Asia/Kolkata').day;
+    dailyIncomeMap.set(day, safeAdd(dailyIncomeMap.get(day) || 0, tx.amount));
+
     const cat = tx.category || 'Other income';
     if (!categoryMap.has(cat)) {
       categoryMap.set(cat, { total: 0, count: 0, transactions: [] });
@@ -595,14 +643,23 @@ export async function getMonthlyIncomeSummary(
     const entry = categoryMap.get(cat)!;
     entry.total = safeAdd(entry.total, tx.amount);
     entry.count += 1;
-    entry.transactions.push({
+
+    const accountName = tx.accountId ? bankMap.get(tx.accountId.toString()) : undefined;
+
+    const txItem = {
       id: tx._id.toString(),
       title: tx.title,
       amount: tx.amount,
       date: tx.date.toISOString(),
+      category: cat,
       paymentMethod: tx.paymentMethod,
+      accountName,
       merchantOrRecipient: tx.merchantOrRecipient,
-    });
+      isPastRecorded: Boolean((tx as any).isPastRecorded),
+    };
+
+    entry.transactions.push(txItem);
+    allFormattedTransactions.push(txItem);
 
     allIncomeTotal = safeAdd(allIncomeTotal, tx.amount);
 
@@ -631,9 +688,7 @@ export async function getMonthlyIncomeSummary(
         amount: data.total,
         transactionCount: data.count,
         percentage:
-          totalMonthlyIncome > 0 && isConfigured
-            ? Math.round((data.total / totalMonthlyIncome) * 100)
-            : allIncomeTotal > 0
+          allIncomeTotal > 0
             ? Math.round((data.total / allIncomeTotal) * 100)
             : 0,
         isConfigured,
@@ -641,6 +696,30 @@ export async function getMonthlyIncomeSummary(
       };
     })
     .sort((a, b) => b.amount - a.amount);
+
+  const highestCategory =
+    categoryBreakdown.length > 0
+      ? { name: categoryBreakdown[0].category, amount: categoryBreakdown[0].amount }
+      : null;
+
+  const averageDailyIncome =
+    daysInMonth > 0 ? Math.round((totalMonthlyIncome / daysInMonth) * 100) / 100 : 0;
+
+  // Build daily income trend
+  const dailyIncomeTrend: Array<{ day: number; date: string; amount: number }> = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    dailyIncomeTrend.push({
+      day: d,
+      date: dStr,
+      amount: dailyIncomeMap.get(d) || 0,
+    });
+  }
+
+  // Largest income entries (top 10)
+  const largestIncomeEntries = [...allFormattedTransactions]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 10);
 
   // Previous month comparison
   const prevYear = month === 1 ? year - 1 : year;
@@ -725,6 +804,197 @@ export async function getMonthlyIncomeSummary(
       changePercentage,
     },
     trend,
+    transactionCount: transactions.length,
+    highestCategory,
+    averageDailyIncome,
+    daysInMonth,
+    dailyIncomeTrend,
+    largestIncomeEntries,
+    allTransactions: allFormattedTransactions,
+  };
+}
+
+/**
+ * Calculates authoritative monthly expense breakdown and analytics for the selected month in Asia/Kolkata.
+ */
+export async function getMonthlyExpensesSummary(
+  userId: mongoose.Types.ObjectId,
+  targetMonth: string // YYYY-MM
+): Promise<MonthlyExpensesReportData> {
+  const parts = targetMonth.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+
+  // Month date boundaries in Asia/Kolkata
+  const firstDay = new Date(Date.UTC(year, month - 1, 1, 12, 0, 0));
+  const lastDay = new Date(Date.UTC(year, month, 0, 12, 0, 0));
+  const startDate = getStartOfDay(firstDay, 'Asia/Kolkata');
+  const endDate = getEndOfDay(lastDay, 'Asia/Kolkata');
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  const monthLabel = firstDay.toLocaleDateString('en-IN', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  });
+
+  // Query only genuine completed expense transactions (and refunds) for the month
+  const [transactions, bankAccounts, creditCards] = await Promise.all([
+    Transaction.find({
+      userId,
+      status: TransactionStatus.COMPLETED,
+      type: { $in: [TransactionType.EXPENSE, TransactionType.CREDIT_CARD_REFUND] },
+      date: { $gte: startDate, $lte: endDate },
+    }).sort({ date: -1 }),
+    BankAccount.find({ userId }),
+    CreditCard.find({ userId }),
+  ]);
+
+  const bankMap = new Map(bankAccounts.map((a) => [a._id.toString(), a.accountName]));
+  const cardMap = new Map(creditCards.map((c) => [c._id.toString(), c.cardNickname]));
+
+  const categoryMap = new Map<
+    string,
+    { total: number; count: number; transactions: MonthlyExpenseTransaction[] }
+  >();
+
+  let totalExpenseCents = 0;
+  let totalRefundCents = 0;
+  let transactionCount = 0;
+  const formattedTransactions: MonthlyExpenseTransaction[] = [];
+  const dailySpendMap = new Map<number, number>();
+
+  for (const tx of transactions) {
+    const amountCents = toCents(tx.amount);
+    const day = getLocalDateParts(tx.date, 'Asia/Kolkata').day;
+
+    if (tx.type === TransactionType.EXPENSE) {
+      totalExpenseCents += amountCents;
+      transactionCount += 1;
+
+      dailySpendMap.set(day, safeAdd(dailySpendMap.get(day) || 0, tx.amount));
+
+      const cat = tx.category || 'Other expense';
+      if (!categoryMap.has(cat)) {
+        categoryMap.set(cat, { total: 0, count: 0, transactions: [] });
+      }
+      const catEntry = categoryMap.get(cat)!;
+      catEntry.total = safeAdd(catEntry.total, tx.amount);
+      catEntry.count += 1;
+
+      const accountName = tx.accountId
+        ? bankMap.get(tx.accountId.toString())
+        : tx.creditCardId
+        ? cardMap.get(tx.creditCardId.toString())
+        : undefined;
+
+      const item: MonthlyExpenseTransaction = {
+        id: tx._id.toString(),
+        title: tx.title,
+        amount: tx.amount,
+        date: tx.date.toISOString(),
+        category: cat,
+        paymentMethod: tx.paymentMethod,
+        paymentChannel: tx.paymentChannel,
+        accountName,
+        merchantOrRecipient: tx.merchantOrRecipient,
+        notes: tx.notes,
+        isPastRecorded: Boolean((tx as any).isPastRecorded),
+      };
+
+      catEntry.transactions.push(item);
+      formattedTransactions.push(item);
+    } else if (tx.type === TransactionType.CREDIT_CARD_REFUND) {
+      // Refunds reduce net expense
+      totalRefundCents += amountCents;
+    }
+  }
+
+  const netExpenseCents = Math.max(0, totalExpenseCents - totalRefundCents);
+  const totalExpenses = fromCents(netExpenseCents);
+  const averageDailySpend = daysInMonth > 0 ? Math.round((totalExpenses / daysInMonth) * 100) / 100 : 0;
+
+  // Build category breakdown
+  const categoryBreakdown: MonthlyExpenseCategoryBreakdown[] = Array.from(categoryMap.entries())
+    .map(([category, data]) => ({
+      category,
+      amount: data.total,
+      transactionCount: data.count,
+      percentage: totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0,
+      transactions: data.transactions,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const highestCategory =
+    categoryBreakdown.length > 0
+      ? { name: categoryBreakdown[0].category, amount: categoryBreakdown[0].amount }
+      : null;
+
+  // Build daily spending trend
+  const dailySpendingTrend: Array<{ day: number; date: string; amount: number }> = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    dailySpendingTrend.push({
+      day: d,
+      date: dStr,
+      amount: dailySpendMap.get(d) || 0,
+    });
+  }
+
+  // Largest expenses (top 10)
+  const largestExpenses = [...formattedTransactions]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 10);
+
+  // Previous month comparison
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevMonthKey = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+  const prevFirstDay = new Date(Date.UTC(prevYear, prevMonth - 1, 1, 12, 0, 0));
+  const prevLastDay = new Date(Date.UTC(prevYear, prevMonth, 0, 12, 0, 0));
+  const prevStart = getStartOfDay(prevFirstDay, 'Asia/Kolkata');
+  const prevEnd = getEndOfDay(prevLastDay, 'Asia/Kolkata');
+
+  const prevTransactions = await Transaction.find({
+    userId,
+    status: TransactionStatus.COMPLETED,
+    type: { $in: [TransactionType.EXPENSE, TransactionType.CREDIT_CARD_REFUND] },
+    date: { $gte: prevStart, $lte: prevEnd },
+  });
+
+  let prevExpenseCents = 0;
+  let prevRefundCents = 0;
+  for (const ptx of prevTransactions) {
+    if (ptx.type === TransactionType.EXPENSE) {
+      prevExpenseCents += toCents(ptx.amount);
+    } else if (ptx.type === TransactionType.CREDIT_CARD_REFUND) {
+      prevRefundCents += toCents(ptx.amount);
+    }
+  }
+
+  const prevTotal = fromCents(Math.max(0, prevExpenseCents - prevRefundCents));
+  const changeAmount = safeSubtract(totalExpenses, prevTotal);
+  const changePercentage =
+    prevTotal > 0 ? Math.round(((totalExpenses - prevTotal) / prevTotal) * 100) : null;
+
+  return {
+    month: targetMonth,
+    monthLabel,
+    totalExpenses,
+    transactionCount,
+    highestCategory,
+    averageDailySpend,
+    daysInMonth,
+    categoryBreakdown,
+    dailySpendingTrend,
+    largestExpenses,
+    allTransactions: formattedTransactions,
+    previousMonthComparison: {
+      previousMonth: prevMonthKey,
+      previousTotal: prevTotal,
+      changeAmount,
+      changePercentage,
+    },
   };
 }
 

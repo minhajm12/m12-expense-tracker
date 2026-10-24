@@ -559,7 +559,15 @@ export default function DashboardPage() {
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={(val) => `₹${val / 1000}k`} />
                     <Tooltip
                       formatter={(val: number) => [formatCurrency(val, user?.currency), '']}
-                      contentStyle={{ borderRadius: '0.5rem', fontSize: '12px' }}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '0.5rem',
+                        fontSize: '12px',
+                        color: 'hsl(var(--card-foreground))',
+                      }}
+                      itemStyle={{ color: 'hsl(var(--card-foreground))' }}
+                      labelStyle={{ color: 'hsl(var(--card-foreground))' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                     <Bar dataKey="income" name="Income" fill="#05A100" radius={[4, 4, 0, 0]} />
@@ -605,7 +613,15 @@ export default function DashboardPage() {
                     </Pie>
                     <Tooltip
                       formatter={(val: number) => [formatCurrency(val, user?.currency), 'Spent']}
-                      contentStyle={{ borderRadius: '0.5rem', fontSize: '12px' }}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '0.5rem',
+                        fontSize: '12px',
+                        color: 'hsl(var(--card-foreground))',
+                      }}
+                      itemStyle={{ color: 'hsl(var(--card-foreground))' }}
+                      labelStyle={{ color: 'hsl(var(--card-foreground))' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -730,7 +746,19 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-border">
                   {data?.recentTransactions?.map((tx) => (
                     <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3 font-medium text-foreground">{tx.title}</td>
+                      <td className="p-3 font-medium text-foreground">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{tx.title}</span>
+                          {(tx as any).isPastRecorded && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] py-0 px-1.5 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 font-normal"
+                            >
+                              Past-Recorded
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-3">
                         <Badge variant="secondary" className="text-xs">
                           {tx.category}

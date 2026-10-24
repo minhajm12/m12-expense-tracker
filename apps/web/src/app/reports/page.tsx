@@ -10,6 +10,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   FileText,
   Download,
   Calendar,
@@ -347,43 +354,47 @@ export default function ReportsPage() {
               <div className="flex items-center gap-2">
                 <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground">Account:</span>
-                <select
-                  value={selectedAccountId}
-                  onChange={(e) => setSelectedAccountId(e.target.value)}
-                  className="h-8 text-xs rounded-md border border-input bg-background px-2.5 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                <Select
+                  value={selectedAccountId || 'all'}
+                  onValueChange={(val) => setSelectedAccountId(val === 'all' ? '' : val)}
                 >
-                  <option value="">All Accounts</option>
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.accountName} {acc.isChitFundAccount ? '(Chit Bank)' : ''}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-8 text-xs w-[140px]">
+                    <SelectValue placeholder="All Accounts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Accounts</SelectItem>
+                    {accounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.accountName} {acc.isChitFundAccount ? '(Chit Bank)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Category:</span>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="h-8 text-xs rounded-md border border-input bg-background px-2.5 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                <Select
+                  value={selectedCategory || 'all'}
+                  onValueChange={(val) => setSelectedCategory(val === 'all' ? '' : val)}
                 >
-                  <option value="">All Categories</option>
-                  <optgroup label="Expense Categories">
+                  <SelectTrigger className="h-8 text-xs w-[150px]">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
                     {DEFAULT_EXPENSE_CATEGORIES.map((cat) => (
-                      <option key={cat.name} value={cat.name}>
+                      <SelectItem key={`exp-${cat.name}`} value={cat.name}>
                         {cat.name}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </optgroup>
-                  <optgroup label="Investment Categories">
                     {DEFAULT_INVESTMENT_CATEGORIES.map((cat) => (
-                      <option key={cat.name} value={cat.name}>
+                      <SelectItem key={`inv-${cat.name}`} value={cat.name}>
                         {cat.name}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </optgroup>
-                </select>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

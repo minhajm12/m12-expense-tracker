@@ -11,6 +11,13 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   ArrowLeftRight,
   Plus,
   Search,
@@ -144,6 +151,7 @@ export default function TransactionsPage() {
   const [editCreditCardId, setEditCreditCardId] = useState('');
   const [editMerchant, setEditMerchant] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editIsPastRecorded, setEditIsPastRecorded] = useState(false);
 
   // Transfer Form State
   const [sourceAccountId, setSourceAccountId] = useState('');
@@ -385,6 +393,7 @@ export default function TransactionsPage() {
     setEditCreditCardId(tx.creditCardId || '');
     setEditMerchant(tx.merchantOrRecipient || '');
     setEditNotes(tx.notes || '');
+    setEditIsPastRecorded(Boolean(tx.isPastRecorded));
     setShowEditModal(true);
   };
 
@@ -429,6 +438,7 @@ export default function TransactionsPage() {
           creditCardId: editPaymentMethod === PaymentMethod.CREDIT_CARD ? editCreditCardId : undefined,
           merchantOrRecipient: editMerchant || undefined,
           notes: editNotes || undefined,
+          isPastRecorded: editIsPastRecorded,
         }),
       });
 
@@ -606,57 +616,65 @@ export default function TransactionsPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               {/* Year Filter */}
-              <select
+              <Select
                 value={yearFilter}
-                onChange={(e) => {
-                  const newYear = e.target.value;
+                onValueChange={(newYear) => {
                   setYearFilter(newYear);
                   if (newYear === 'all') {
                     setMonthFilter('all');
                   }
                 }}
-                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                title="Filter by year"
               >
-                {getAvailableYears().map((y) => (
-                  <option key={y.value} value={y.value}>
-                    {y.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-10 text-xs sm:text-sm font-medium w-[110px]" title="Filter by year">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableYears().map((y) => (
+                    <SelectItem key={y.value} value={y.value}>
+                      {y.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               {/* Month Filter */}
-              <select
+              <Select
                 value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
+                onValueChange={(val) => setMonthFilter(val)}
                 disabled={yearFilter === 'all'}
-                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Filter by month"
               >
-                {MONTHS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-10 text-xs sm:text-sm font-medium w-[120px]" title="Filter by month">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               {/* Type Filter */}
-              <select
+              <Select
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                title="Filter by transaction type"
+                onValueChange={(val) => setTypeFilter(val)}
               >
-                <option value="all">All Types</option>
-                <option value="income">Income (+)</option>
-                <option value="expense">Expense (-)</option>
-                <option value="investment">Investment (↗)</option>
-                <option value="transfer">Transfers</option>
-                <option value="lending">Lending (Hand Loans Out)</option>
-                <option value="borrowing">Borrowing (Hand Loans In)</option>
-                <option value="credit_card_payment">Card Repayments</option>
-                <option value="credit_card_refund">Card Refunds</option>
-              </select>
+                <SelectTrigger className="h-10 text-xs sm:text-sm w-[130px]" title="Filter by transaction type">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="income">Income (+)</SelectItem>
+                  <SelectItem value="expense">Expense (-)</SelectItem>
+                  <SelectItem value="investment">Investment (↗)</SelectItem>
+                  <SelectItem value="transfer">Transfers</SelectItem>
+                  <SelectItem value="lending">Lending (Hand Loans Out)</SelectItem>
+                  <SelectItem value="borrowing">Borrowing (Hand Loans In)</SelectItem>
+                  <SelectItem value="credit_card_payment">Card Repayments</SelectItem>
+                  <SelectItem value="credit_card_refund">Card Refunds</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Payment Filter */}
               <select
@@ -904,12 +922,23 @@ export default function TransactionsPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-foreground leading-tight">{tx.title}</p>
-                              <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
                                 <span>{new Date(tx.date).toLocaleDateString()}</span>
                                 {tx.merchantOrRecipient && (
                                   <>
                                     <span>•</span>
                                     <span>{tx.merchantOrRecipient}</span>
+                                  </>
+                                )}
+                                {tx.isPastRecorded && (
+                                  <>
+                                    <span>•</span>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] py-0 px-1.5 h-4 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 font-normal"
+                                    >
+                                      Past-Recorded
+                                    </Badge>
                                   </>
                                 )}
                               </div>
@@ -1251,6 +1280,30 @@ export default function TransactionsPage() {
                     onChange={(e) => setEditNotes(e.target.value)}
                   />
                 </div>
+
+                {/* 10. Past-Recorded Checkbox */}
+                {(editType === TransactionType.INCOME ||
+                  editType === TransactionType.EXPENSE ||
+                  editType === TransactionType.INVESTMENT) && (
+                  <div className="rounded-lg border border-border p-3 bg-muted/20 space-y-1">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editIsPastRecorded}
+                        onChange={(e) => setEditIsPastRecorded(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                      />
+                      <div>
+                        <span className="text-xs font-semibold text-foreground block">
+                          Past-Recorded Transaction — Do not adjust account balance
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block leading-relaxed mt-0.5">
+                          Use this option when the transaction has already been reflected in your account balance, such as before you started tracking in M12 Expense Tracker. The transaction will still appear in your records and reports, but it will not change your account balance again.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </CardContent>
 
               <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
@@ -1284,36 +1337,42 @@ export default function TransactionsPage() {
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Source Account (-) *
                     </label>
-                    <select
+                    <Select
                       value={sourceAccountId}
-                      onChange={(e) => setSourceAccountId(e.target.value)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      required
+                      onValueChange={(val) => setSourceAccountId(val)}
                     >
-                      {accounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="Source Account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Destination Account (+) *
                     </label>
-                    <select
+                    <Select
                       value={destAccountId}
-                      onChange={(e) => setDestAccountId(e.target.value)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      required
+                      onValueChange={(val) => setDestAccountId(val)}
                     >
-                      {accounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="Destination Account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 

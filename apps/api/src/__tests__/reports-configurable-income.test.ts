@@ -303,4 +303,38 @@ describe('Phase 3: Configurable Monthly Income Reports Test Suite', () => {
     }
     expect(sum).toBe(res.body.data.totalMonthlyIncome);
   });
+
+  it('Phase 4: Total Incoming vs Monthly Income independence and Daily Average Income calculation', async () => {
+    const targetMonth = '2026-10'; // October has 31 days
+
+    // Current state: active categories are ['Salary', 'Business income'].
+    // Freelance income (₹30,000) is NOT in active categories.
+    // Salary total: 85,000 + 5,000 = 90,000.
+    // Business income total: 45,000.
+    // Configured monthly income: 90,000 + 45,000 = 135,000.
+    // All incoming total: 90,000 (Salary) + 45,000 (Business) + 30,000 (Freelance) = 165,000.
+
+    const res = await request(app)
+      .get(`/api/v1/reports/income-summary?month=${targetMonth}`)
+      .set('Cookie', userCookie);
+
+    expect(res.status).toBe(200);
+    const data = res.body.data;
+
+    // 1. Total Incoming reflects all incoming transactions
+    expect(data.allIncomeTotal).toBe(165000);
+
+    // 2. Monthly Income strictly reflects Active Income Categories only
+    expect(data.totalMonthlyIncome).toBe(135000);
+
+    // 3. Total Incoming and Monthly Income are independent
+    expect(data.allIncomeTotal).not.toBe(data.totalMonthlyIncome);
+
+    // 4. Days in October is 31
+    expect(data.daysInMonth).toBe(31);
+
+    // 5. Daily Average Income is calculated from Monthly Income: 135,000 / 31 = 4354.84
+    const expectedDailyAvg = Math.round((135000 / 31) * 100) / 100;
+    expect(data.averageDailyIncome).toBe(expectedDailyAvg);
+  });
 });

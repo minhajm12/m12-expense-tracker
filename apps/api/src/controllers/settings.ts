@@ -21,6 +21,7 @@ import { Investment } from '../models/Investment';
 import { InvestmentContribution } from '../models/InvestmentContribution';
 import { EmiRule } from '../models/EmiRule';
 import { EmiOccurrence } from '../models/EmiOccurrence';
+import { PassThroughMoney } from '../models/PassThroughMoney';
 import { AuditLog } from '../models/AuditLog';
 import { sendSuccess, sendError } from '../utils/api-response';
 import { clearAuthCookie } from '../utils/token';
@@ -273,6 +274,7 @@ export const resetAllFinancialData = async (req: Request, res: Response): Promis
     EmiRule.deleteMany({ userId }),
     EmiOccurrence.deleteMany({ userId }),
     CashAccount.deleteMany({ userId }),
+    PassThroughMoney.deleteMany({ userId }),
   ]);
 
   sendSuccess(
@@ -333,6 +335,7 @@ export const deleteAccountPermanently = async (req: Request, res: Response): Pro
     EmiRule.deleteMany({ userId }),
     EmiOccurrence.deleteMany({ userId }),
     AuditLog.deleteMany({ userId }),
+    PassThroughMoney.deleteMany({ userId }),
   ]);
 
   // Permanently delete user record

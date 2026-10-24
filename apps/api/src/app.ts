@@ -21,6 +21,7 @@ import chitFundRouter from './routes/chit-fund';
 import { lendingBorrowingRouter } from './routes/lending-borrowing';
 import settingsRouter from './routes/settings';
 import investmentRouter from './routes/investment';
+import { passThroughRouter } from './routes/pass-through';
 import { apiRateLimiter } from './middleware/rate-limiter';
 import { dbConnectionMiddleware } from './middleware/db-connection';
 import { errorHandler } from './middleware/error-handler';
@@ -90,6 +91,7 @@ export const createApp = (): Express => {
   app.use('/api/v1/lending-borrowing', lendingBorrowingRouter);
   app.use('/api/v1/settings', settingsRouter);
   app.use('/api/v1/investments', investmentRouter);
+  app.use('/api/v1/pass-through', passThroughRouter);
 
 
   // 404 Handler

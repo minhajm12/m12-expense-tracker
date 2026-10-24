@@ -26,6 +26,7 @@ import { ChitFundAdjustment } from '../models/ChitFundAdjustment';
 import { ChitFund } from '../models/ChitFund';
 import { RecurringOccurrence } from '../models/RecurringOccurrence';
 import { RecurringTransaction } from '../models/RecurringTransaction';
+import { PassThroughMoney } from '../models/PassThroughMoney';
 
 /**
  * Recomputes and updates the exact balance of a bank account from its
@@ -81,6 +82,11 @@ export const recalculateAccountBalance = async (
   let balanceCents = toCents(account.openingBalance);
 
   for (const tx of transactions) {
+    // Past-recorded transactions are already accounted for in opening balances and must not adjust account balance
+    if ((tx as any).isPastRecorded) {
+      continue;
+    }
+
     const txAmountCents = toCents(tx.amount);
 
     if (tx.type === TransactionType.INCOME) {
@@ -195,6 +201,29 @@ export const recalculateAccountBalance = async (
     }
   }
 
+  // Pass-Through Money inflows and outflows affecting this bank account
+  const passThroughRecords = await PassThroughMoney.find({
+    userId,
+    $or: [
+      { receivingBankAccountId: accountId },
+      { 'sends.bankAccountId': accountId },
+    ],
+  });
+
+  for (const pt of passThroughRecords) {
+    if (pt.receivingBankAccountId?.toString() === accountId.toString()) {
+      balanceCents += toCents(pt.receivedAmount);
+    }
+
+    if (Array.isArray(pt.sends)) {
+      for (const send of pt.sends) {
+        if (send.bankAccountId?.toString() === accountId.toString()) {
+          balanceCents -= toCents(send.amount);
+        }
+      }
+    }
+  }
+
   const finalBalance = fromCents(balanceCents);
   account.currentBalance = finalBalance;
   await account.save();
@@ -225,6 +254,11 @@ export const recalculateCreditCardOutstanding = async (
   let outstandingCents = toCents(card.openingOutstanding);
 
   for (const tx of transactions) {
+    // Past-recorded transactions are already accounted for in opening balances and must not adjust outstanding
+    if ((tx as any).isPastRecorded) {
+      continue;
+    }
+
     const txCents = toCents(tx.amount);
 
     if (tx.type === TransactionType.EXPENSE || tx.type === TransactionType.INVESTMENT) {
@@ -584,8 +618,13 @@ export const calculatePersonalCashInHand = async (
   });
 
   for (const tx of cashTransactions) {
-    // Untracked / external cash payments do not modify tracked personal cash in hand
-    if ((tx as any).isUntrackedCash || (tx as any).cashSource === 'untracked_cash' || tx.tags?.includes('untracked_cash')) {
+    // Untracked / external cash payments and past-recorded transactions do not modify tracked personal cash in hand
+    if (
+      (tx as any).isUntrackedCash ||
+      (tx as any).cashSource === 'untracked_cash' ||
+      tx.tags?.includes('untracked_cash') ||
+      (tx as any).isPastRecorded
+    ) {
       continue;
     }
     const txAmountCents = toCents(tx.amount);
@@ -830,8 +869,18 @@ export const getTotalCashSummary = async (
     : accounts;
   const otherBankBalances = otherAccounts.reduce((sum, acc) => safeAdd(sum, acc.currentBalance), 0);
 
-  // Total Personal Available Balance: (B_chit - R_chit) + B_other
-  const totalPersonalAvailableBalance = safeAdd(personalAvailableBalanceChitBank, otherBankBalances);
+  // Held Pass-Through funds currently in bank accounts (money held on behalf of others, not personal wealth)
+  const openPassThrough = await PassThroughMoney.find({
+    userId,
+    status: { $in: ['pending', 'partially_sent'] },
+  });
+  const heldPassThroughFunds = openPassThrough.reduce((sum, pt) => safeAdd(sum, pt.outstandingAmount), 0);
+
+  // Total Personal Available Balance: (B_chit - R_chit) + B_other - heldPassThroughFunds
+  const totalPersonalAvailableBalance = Math.max(
+    0,
+    safeSubtract(safeAdd(personalAvailableBalanceChitBank, otherBankBalances), heldPassThroughFunds)
+  );
 
   // Outstanding Personal Lending: L
   const lendingRecords = await LendingBorrowing.find({
@@ -892,6 +941,7 @@ export const getTotalCashSummary = async (
     personalAvailableBalanceChitBank,
     otherBankBalances,
     totalPersonalAvailableBalance,
+    heldPassThroughFunds,
     cashInHand: personalCashInHand,
     personalCashInHand,
     openingCashBalance,

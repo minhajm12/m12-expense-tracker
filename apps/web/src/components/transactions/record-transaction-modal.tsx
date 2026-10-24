@@ -58,6 +58,7 @@ export function RecordTransactionModal({
   const [txCreditCardId, setTxCreditCardId] = useState('');
   const [txMerchant, setTxMerchant] = useState('');
   const [txNotes, setTxNotes] = useState('');
+  const [isPastRecorded, setIsPastRecorded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Entities Data
@@ -110,6 +111,7 @@ export function RecordTransactionModal({
   useEffect(() => {
     if (isOpen) {
       setTxDate(formatDateToInput(new Date()));
+      setIsPastRecorded(false);
       fetchDependencies();
     }
   }, [isOpen, fetchDependencies]);
@@ -206,6 +208,7 @@ export function RecordTransactionModal({
         creditCardId: txPaymentMethod === PaymentMethod.CREDIT_CARD ? txCreditCardId : undefined,
         merchantOrRecipient: txMerchant.trim() || undefined,
         notes: txNotes.trim() || undefined,
+        isPastRecorded,
         idempotencyKey,
       };
 
@@ -224,6 +227,7 @@ export function RecordTransactionModal({
         setTxAmount('');
         setTxMerchant('');
         setTxNotes('');
+        setIsPastRecorded(false);
         onClose();
         emitDataChange('transactions');
         emitDataChange('accounts');
@@ -495,6 +499,30 @@ export function RecordTransactionModal({
                 onChange={(e) => setTxNotes(e.target.value)}
               />
             </div>
+
+            {/* 10. Past-Recorded Transaction Checkbox */}
+            {(txType === TransactionType.INCOME ||
+              txType === TransactionType.EXPENSE ||
+              txType === TransactionType.INVESTMENT) && (
+              <div className="rounded-lg border border-border p-3 bg-muted/20 space-y-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isPastRecorded}
+                    onChange={(e) => setIsPastRecorded(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                  />
+                  <div>
+                    <span className="text-xs font-semibold text-foreground block">
+                      Past-Recorded Transaction — Do not adjust account balance
+                    </span>
+                    <span className="text-[11px] text-muted-foreground block leading-relaxed mt-0.5">
+                      Use this option when the transaction has already been reflected in your account balance, such as before you started tracking in M12 Expense Tracker. The transaction will still appear in your records and reports, but it will not change your account balance again.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            )}
           </CardContent>
 
           <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">

@@ -888,212 +888,7 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {/* 1. Data Management Section */}
-      <div className="pt-4 border-t border-border/80">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive shadow-sm border border-destructive/20">
-            <Database className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">1. Data Management</h2>
-            <p className="text-xs text-muted-foreground">
-              Wipe all financial records, manage account lifecycle, or selectively reset transaction activity
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6">
-          {/* Reset All Financial Data */}
-          <Card className="border-destructive/40 shadow-sm overflow-hidden bg-destructive/[0.02]">
-            <CardHeader className="bg-destructive/10 border-b border-destructive/20 pb-4">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base font-bold text-destructive">Reset All Financial Data</CardTitle>
-                <Badge variant="destructive" className="text-[10px]">
-                  Complete Financial Wipe
-                </Badge>
-              </div>
-              <CardDescription className="text-xs text-destructive/80 mt-1">
-                Wipes all financial records, bank accounts, credit cards, chit members, transactions, and budgets. Your registered login account and system administrator status will be strictly preserved.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="p-6 space-y-4">
-              <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs space-y-2">
-                <div className="flex items-center gap-2 font-semibold">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <span>Permanent Action — Retains Login Account Only</span>
-                </div>
-                <p className="text-[11px] text-destructive/90 leading-relaxed">
-                  This will completely clear your financial workspace so you can begin setup again from scratch. It wipes all accounts, credit cards, transactions, chit funds, and budgets belonging to you.
-                </p>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowOptionBModal(true)}
-                  className="gap-2 text-xs font-semibold bg-destructive hover:bg-destructive/90"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Reset All Financial Data
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Delete Account Permanently (Immediately after Reset All Financial Data) */}
-          <Card className="border-destructive/60 shadow-md overflow-hidden bg-destructive/[0.04] ring-1 ring-destructive/20">
-            <CardHeader className="bg-destructive/15 border-b border-destructive/25 pb-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-bold text-destructive flex items-center gap-2">
-                    <UserX className="h-4 w-4 text-destructive" />
-                    Delete Account Permanently
-                  </CardTitle>
-                  <Badge variant="destructive" className="text-[10px] font-mono tracking-wider">
-                    Irreversible • Account Removal
-                  </Badge>
-                </div>
-              </div>
-              <CardDescription className="text-xs text-destructive/90 mt-1">
-                Permanently closes and erases your user account, login credentials, and all personal and financial data. Unlike resetting financial data, your account login and access will be completely terminated.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="p-6 space-y-4">
-              <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs space-y-2">
-                <div className="flex items-center gap-2 font-semibold">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <span>Difference from "Reset All Financial Data":</span>
-                </div>
-                <p className="text-[11px] text-destructive/90 leading-relaxed">
-                  <strong>Reset All Financial Data</strong> wipes your financial ledger and entries while keeping your login account and credentials active.
-                  <br />
-                  <strong>Permanent Account Deletion</strong> completely deletes your login credentials, email address, password, session tokens, personal records, and all accounts from the system. You will be logged out and cannot log in again.
-                </p>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    setConfirmationPhraseDeleteAccount('');
-                    setDeleteAccountPassword('');
-                    setShowDeleteAccountModal(true);
-                  }}
-                  className="gap-2 text-xs font-semibold bg-destructive hover:bg-destructive/90 text-white"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete My Account Permanently
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Reset Selected Transactions & Entries */}
-          <Card className="border-border shadow-sm overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b border-border/60 pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-base font-bold">Reset Selected Transactions &amp; Entries</CardTitle>
-                    <Badge variant="outline" className="text-[10px] text-amber-500 border-amber-500/30">
-                      Preserves Setup &amp; Balances
-                    </Badge>
-                  </div>
-                  <CardDescription className="text-xs mt-1">
-                    Selectively remove personal financial transaction activity while retaining bank accounts, credit cards, chit members, opening balances, and recalculating remaining balances.
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8"
-                    onClick={handleSelectAllA}
-                  >
-                    Select All
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs h-8"
-                    onClick={handleDeselectAllA}
-                  >
-                    Clear
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-6 space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {AVAILABLE_TRANSACTION_TYPES.map((item) => {
-                  const isChecked = selectedTypesA.has(item.id);
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => toggleTypeA(item.id)}
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                        isChecked
-                          ? 'border-primary/50 bg-primary/5 text-foreground'
-                          : 'border-border/60 bg-card hover:bg-muted/40 text-muted-foreground'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}}
-                        className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <div className="space-y-0.5">
-                        <p className={`text-xs font-semibold ${isChecked ? 'text-foreground' : ''}`}>
-                          {item.label}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground leading-tight">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="p-3.5 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground space-y-1.5">
-                <p className="font-semibold text-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  Preserved Financial Setup:
-                </p>
-                <p className="text-[11px] leading-relaxed">
-                  Bank accounts, masked account numbers, credit cards, chit-fund records, module preferences, registered credentials, and initial opening balances are <strong>never deleted</strong> by this reset. Remaining balances are authoritatively recomputed.
-                </p>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  disabled={selectedTypesA.size === 0}
-                  onClick={() => setShowOptionAModal(true)}
-                  className="gap-2 text-xs"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Reset Selected Entries ({selectedTypesA.size})
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* 2. Investment Management Section (Only when Investment is enabled) */}
+      {/* Investment Management Section (Only when Investment is enabled) */}
       {isInvestmentEnabled && (
         <div className="pt-6 border-t border-border/80">
           <div className="flex items-center gap-3 mb-6">
@@ -1101,7 +896,7 @@ export default function SettingsPage() {
               <TrendingUp className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground">2. Investment Management</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">Investment Management</h2>
               <p className="text-xs text-muted-foreground">
                 Manage and reset investment records and contribution schedules without altering unrelated bank accounts, chit fund records, or EMI loans
               </p>
@@ -1146,8 +941,8 @@ export default function SettingsPage() {
                         {loadingInvestmentsList
                           ? 'Loading investments...'
                           : investmentsList.length === 0
-                          ? 'No investments found'
-                          : 'Select an investment to reset...'}
+                            ? 'No investments found'
+                            : 'Select an investment to reset...'}
                       </option>
                       {investmentsList.map((inv) => (
                         <option key={inv.id || inv._id} value={inv.id || inv._id}>
@@ -1201,7 +996,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* 3. Chit Fund Management Section (Only when Chit Fund is enabled) */}
+      {/* Chit Fund Management Section (Only when Chit Fund is enabled) */}
       {isChitFundEnabled && (
         <div className="pt-6 border-t border-border/80">
           <div className="flex items-center gap-3 mb-6">
@@ -1209,7 +1004,7 @@ export default function SettingsPage() {
               <Coins className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground">3. Chit Fund Management</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">Chit Fund Management</h2>
               <p className="text-xs text-muted-foreground">
                 Reset monthly winner assignments or wipe historical collections and payouts while preserving member registrations
               </p>
@@ -1277,17 +1072,15 @@ export default function SettingsPage() {
                                 key={c.cyclePeriod}
                                 type="button"
                                 onClick={() => setSelectedCyclePeriod(c.cyclePeriod)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 border ${
-                                  isSelected
-                                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
-                                }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 border ${isSelected
+                                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                                  }`}
                               >
                                 <span>{formatCyclePill(c.cyclePeriod)}</span>
                                 <span
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    isSelected ? 'bg-white' : 'bg-amber-400'
-                                  }`}
+                                  className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-amber-400'
+                                    }`}
                                 />
                               </button>
                             );
@@ -1410,7 +1203,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* 4. Lending & Borrowing Management Section (Only when Lending & Borrowing is enabled) */}
+      {/* Lending & Borrowing Management Section (Only when Lending & Borrowing is enabled) */}
       {isLendingBorrowingEnabled && (
         <div className="pt-6 border-t border-border/80">
           <div className="flex items-center gap-3 mb-6">
@@ -1418,7 +1211,7 @@ export default function SettingsPage() {
               <HandCoins className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground">4. Lending &amp; Borrowing Management</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">Lending &amp; Borrowing Management</h2>
               <p className="text-xs text-muted-foreground">
                 Manage and reset personal loan records and repayments while preserving bank accounts and updating balances
               </p>
@@ -1474,7 +1267,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* 5. EMI Management Section (Only when EMI Management is enabled) */}
+      {/* EMI Management Section (Only when EMI Management is enabled) */}
       {isEmiEnabled && (
         <div className="pt-6 border-t border-border/80">
           <div className="flex items-center gap-3 mb-6">
@@ -1482,7 +1275,7 @@ export default function SettingsPage() {
               <Percent className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground">5. EMI Management</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">EMI Management</h2>
               <p className="text-xs text-muted-foreground">
                 Manage and reset active loan schedules, installment occurrences, and forecasts without altering other modules
               </p>
@@ -1537,6 +1330,212 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Data Management Section (Always at the end of Settings) */}
+      <div className="pt-6 border-t border-border/80">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive shadow-sm border border-destructive/20">
+            <Database className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Data Management</h2>
+            <p className="text-xs text-muted-foreground">
+              Wipe all financial records, manage account lifecycle, or selectively reset transaction activity
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6">
+          {/* 1. Reset Selected Transactions & Entries */}
+          <Card className="border-border shadow-sm overflow-hidden">
+            <CardHeader className="bg-muted/30 border-b border-border/60 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base font-bold">Reset Selected Transactions &amp; Entries</CardTitle>
+                    <Badge variant="outline" className="text-[10px] text-amber-500 border-amber-500/30">
+                      Preserves Setup &amp; Balances
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs mt-1">
+                    Selectively remove personal financial transaction activity while retaining bank accounts, credit cards, chit members, opening balances, and recalculating remaining balances.
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={handleSelectAllA}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={handleDeselectAllA}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {AVAILABLE_TRANSACTION_TYPES.map((item) => {
+                  const isChecked = selectedTypesA.has(item.id);
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleTypeA(item.id)}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${isChecked
+                        ? 'border-primary/50 bg-primary/5 text-foreground'
+                        : 'border-border/60 bg-card hover:bg-muted/40 text-muted-foreground'
+                        }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => { }}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <div className="space-y-0.5">
+                        <p className={`text-xs font-semibold ${isChecked ? 'text-foreground' : ''}`}>
+                          {item.label}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-tight">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground space-y-1.5">
+                <p className="font-semibold text-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  Preserved Financial Setup:
+                </p>
+                <p className="text-[11px] leading-relaxed">
+                  Bank accounts, masked account numbers, credit cards, chit-fund records, module preferences, registered credentials, and initial opening balances are <strong>never deleted</strong> by this reset. Remaining balances are authoritatively recomputed.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={selectedTypesA.size === 0}
+                  onClick={() => setShowOptionAModal(true)}
+                  className="gap-2 text-xs"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset Selected Entries ({selectedTypesA.size})
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 2. Reset All Financial Data */}
+          <Card className="border-destructive/40 shadow-sm overflow-hidden bg-destructive/[0.02]">
+            <CardHeader className="bg-destructive/10 border-b border-destructive/20 pb-4">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-bold text-destructive">Reset All Financial Data</CardTitle>
+                <Badge variant="destructive" className="text-[10px]">
+                  Complete Financial Wipe
+                </Badge>
+              </div>
+              <CardDescription className="text-xs text-destructive/80 mt-1">
+                Wipes all financial records, bank accounts, credit cards, chit members, transactions, and budgets. Your registered login account and system administrator status will be strictly preserved.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-4">
+              <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs space-y-2">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>Permanent Action — Retains Login Account Only</span>
+                </div>
+                <p className="text-[11px] text-destructive/90 leading-relaxed">
+                  This will completely clear your financial workspace so you can begin setup again from scratch. It wipes all accounts, credit cards, transactions, chit funds, and budgets belonging to you.
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowOptionBModal(true)}
+                  className="gap-2 text-xs font-semibold bg-destructive hover:bg-destructive/90"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Reset All Financial Data
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 3. Delete Account Permanently (Immediately after Reset All Financial Data) */}
+          <Card className="border-destructive/60 shadow-md overflow-hidden bg-destructive/[0.04] ring-1 ring-destructive/20">
+            <CardHeader className="bg-destructive/15 border-b border-destructive/25 pb-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base font-bold text-destructive flex items-center gap-2">
+                    <UserX className="h-4 w-4 text-destructive" />
+                    Delete Account Permanently
+                  </CardTitle>
+                  <Badge variant="destructive" className="text-[10px] font-mono tracking-wider">
+                    Irreversible • Account Removal
+                  </Badge>
+                </div>
+              </div>
+              <CardDescription className="text-xs text-destructive/90 mt-1">
+                Permanently closes and erases your user account, login credentials, and all personal and financial data. Unlike resetting financial data, your account login and access will be completely terminated.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-4">
+              <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs space-y-2">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>Difference from "Reset All Financial Data":</span>
+                </div>
+                <p className="text-[11px] text-destructive/90 leading-relaxed">
+                  <strong>Reset All Financial Data</strong> wipes your financial ledger and entries while keeping your login account and credentials active.
+                  <br />
+                  <strong>Permanent Account Deletion</strong> completely deletes your login credentials, email address, password, session tokens, personal records, and all accounts from the system. You will be logged out and cannot log in again.
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setConfirmationPhraseDeleteAccount('');
+                    setDeleteAccountPassword('');
+                    setShowDeleteAccountModal(true);
+                  }}
+                  className="gap-2 text-xs font-semibold bg-destructive hover:bg-destructive/90 text-white"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete My Account Permanently
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+
+        </div>
+      </div>
 
       {/* Reset Selected Transactions Confirmation Modal */}
       {showOptionAModal && (

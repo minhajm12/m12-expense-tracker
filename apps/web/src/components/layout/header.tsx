@@ -55,7 +55,7 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="lg:hidden"
           onClick={onMobileMenuToggle}
           aria-label="Toggle navigation"
         >
