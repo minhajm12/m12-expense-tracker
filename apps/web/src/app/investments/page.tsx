@@ -7,6 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/toast';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   TrendingUp,
   Coins,
   Landmark,
@@ -834,31 +842,21 @@ export default function InvestmentsPage() {
       </Card>
 
       {/* ================= MODAL 1: ADD INVESTMENT ================= */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg shadow-2xl border-border bg-card max-h-[90vh] flex flex-col">
-            <CardHeader className="pb-3 border-b border-border/40 shrink-0">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  {category === 'CHIT' ? <Coins className="h-5 w-5 text-emerald-400" /> : <TrendingUp className="h-5 w-5 text-purple-400" />}
-                  <span>{category === 'CHIT' ? 'Configure External Chit Fund' : 'New Capital Investment'}</span>
-                </CardTitle>
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <CardDescription className="text-xs">
-                {category === 'CHIT'
-                  ? 'Track external chit groups, monthly installments, midway payments, and prize payouts.'
-                  : 'Track mutual funds, stocks, fixed deposits, gold, and other asset classes.'}
-              </CardDescription>
-            </CardHeader>
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {category === 'CHIT' ? <Coins className="h-5 w-5 text-emerald-400" /> : <TrendingUp className="h-5 w-5 text-purple-400" />}
+              <span>{category === 'CHIT' ? 'Configure External Chit Fund' : 'New Capital Investment'}</span>
+            </DialogTitle>
+            <DialogDescription>
+              {category === 'CHIT'
+                ? 'Track external chit groups, monthly installments, midway payments, and prize payouts.'
+                : 'Track mutual funds, stocks, fixed deposits, gold, and other asset classes.'}
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleAddInvestment} className="overflow-y-auto p-4 space-y-4 flex-1">
+          <form onSubmit={handleAddInvestment} className="space-y-4 pt-2">
               {/* Category Selector */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1066,7 +1064,7 @@ export default function InvestmentsPage() {
                 />
               </div>
 
-              <CardFooter className="p-0 pt-2 flex items-center justify-end gap-2 shrink-0">
+              <DialogFooter className="pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -1085,36 +1083,30 @@ export default function InvestmentsPage() {
                   {submittingAdd ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   <span>{submittingAdd ? 'Saving...' : 'Create Investment'}</span>
                 </Button>
-              </CardFooter>
+              </DialogFooter>
             </form>
-          </Card>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
 
       {/* ================= MODAL 2: RECORD PAYMENT ================= */}
-      {showPayModal && selectedInvestmentForPay && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-2xl border-border bg-card">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-purple-400" />
-                  <span>Record Investment Payment</span>
-                </CardTitle>
-                <button
-                  type="button"
-                  onClick={() => setShowPayModal(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <CardDescription className="text-xs">
-                Logging payment for <strong className="text-foreground">{selectedInvestmentForPay.name}</strong>
-              </CardDescription>
-            </CardHeader>
+      <Dialog
+        open={Boolean(showPayModal && selectedInvestmentForPay)}
+        onOpenChange={(open) => {
+          if (!open && !submittingPay) setShowPayModal(false);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-purple-400" />
+              <span>Record Investment Payment</span>
+            </DialogTitle>
+            <DialogDescription>
+              Logging payment for <strong className="text-foreground">{selectedInvestmentForPay?.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleRecordPayment} className="p-4 space-y-3.5 text-xs">
+          <form onSubmit={handleRecordPayment} className="space-y-3.5 text-xs pt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
@@ -1161,17 +1153,21 @@ export default function InvestmentsPage() {
                   <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
                     Payment Method
                   </label>
-                  <select
+                  <Select
                     value={payMethod}
-                    onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}
-                    className="flex h-9 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    onValueChange={(val) => setPayMethod(val as PaymentMethod)}
                   >
-                    <option value={PaymentMethod.UPI}>UPI</option>
-                    <option value={PaymentMethod.BANK_TRANSFER}>Bank Transfer</option>
-                    <option value={PaymentMethod.DEBIT_CARD}>Debit Card</option>
-                    <option value={PaymentMethod.CASH}>Cash in Hand</option>
-                    <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                  </select>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Payment Method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={PaymentMethod.UPI}>UPI</SelectItem>
+                      <SelectItem value={PaymentMethod.BANK_TRANSFER}>Bank Transfer</SelectItem>
+                      <SelectItem value={PaymentMethod.DEBIT_CARD}>Debit Card</SelectItem>
+                      <SelectItem value={PaymentMethod.CASH}>Cash in Hand</SelectItem>
+                      <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {payMethod !== PaymentMethod.CASH && payMethod !== PaymentMethod.CREDIT_CARD && (
@@ -1179,18 +1175,21 @@ export default function InvestmentsPage() {
                     <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
                       Funding Bank Account
                     </label>
-                    <select
-                      value={payAccountId}
-                      onChange={(e) => setPayAccountId(e.target.value)}
-                      required
-                      className="flex h-9 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    <Select
+                      value={payAccountId || undefined}
+                      onValueChange={setPayAccountId}
                     >
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.accountName}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select Bank Account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.accountName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
@@ -1199,18 +1198,21 @@ export default function InvestmentsPage() {
                     <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
                       Credit Card
                     </label>
-                    <select
-                      value={payCreditCardId}
-                      onChange={(e) => setPayCreditCardId(e.target.value)}
-                      required
-                      className="flex h-9 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    <Select
+                      value={payCreditCardId || undefined}
+                      onValueChange={setPayCreditCardId}
                     >
-                      {creditCards.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.cardNickname || c.cardNumber}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select Credit Card" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {creditCards.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.cardNickname || c.cardNumber}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
               </div>
@@ -1267,7 +1269,7 @@ export default function InvestmentsPage() {
                 />
               </div>
 
-              <CardFooter className="p-0 pt-3 flex items-center justify-end gap-2">
+              <DialogFooter className="pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -1286,167 +1288,160 @@ export default function InvestmentsPage() {
                   {submittingPay ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                   <span>{submittingPay ? 'Recording...' : 'Confirm & Debit Account'}</span>
                 </Button>
-              </CardFooter>
+              </DialogFooter>
             </form>
-          </Card>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
 
       {/* ================= MODAL 3: MARK CHIT AS WON ================= */}
-      {showWonModal && selectedChitForWon && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-2xl border-amber-500/30 bg-card">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-amber-400">
-                  <Trophy className="h-5 w-5 text-amber-400" />
-                  <span>Mark External Chit as Won</span>
-                </CardTitle>
-                <button
-                  type="button"
-                  onClick={() => setShowWonModal(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <CardDescription className="text-xs">
-                Record prize payout for <strong className="text-foreground">{selectedChitForWon.name}</strong>. Future monthly contributions will continue until the full chit duration ends.
-              </CardDescription>
-            </CardHeader>
+      <Dialog
+        open={Boolean(showWonModal && selectedChitForWon)}
+        onOpenChange={(open) => {
+          if (!open && !submittingWon) setShowWonModal(false);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-400">
+              <Trophy className="h-5 w-5 text-amber-400" />
+              <span>Mark External Chit as Won</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Record prize payout for <strong className="text-foreground">{selectedChitForWon?.name}</strong>. Future monthly contributions will continue until the full chit duration ends.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleMarkAsWon} className="p-4 space-y-3.5 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Winning Date
+          <form onSubmit={handleMarkAsWon} className="space-y-3.5 text-xs pt-2">
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Winning Date
+              </label>
+              <DatePicker
+                value={wonDate}
+                onChange={setWonDate}
+              />
+            </div>
+
+            {/* Already Received Before Tracking (Historical Payout) Toggle */}
+            <div className="flex items-start gap-2.5 p-3 rounded-lg border border-border/70 bg-muted/20">
+              <input
+                type="checkbox"
+                id="isHistoricalPayout"
+                checked={isHistoricalPayout}
+                onChange={(e) => setIsHistoricalPayout(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input text-amber-500 focus:ring-amber-500"
+              />
+              <div className="space-y-0.5">
+                <label htmlFor="isHistoricalPayout" className="text-xs font-semibold text-foreground cursor-pointer">
+                  Payout Already Received Before Tracking
                 </label>
-                <DatePicker
-                  value={wonDate}
-                  onChange={setWonDate}
-                />
+                <p className="text-[11px] text-muted-foreground">
+                  Enable if you won and received this prize payout in a prior month before tracking it in this app. It will be recorded under Investment Returns without altering current bank or cash balances.
+                </p>
               </div>
+            </div>
 
-              {/* Already Received Before Tracking (Historical Payout) Toggle */}
-              <div className="flex items-start gap-2.5 p-3 rounded-lg border border-border/70 bg-muted/20">
-                <input
-                  type="checkbox"
-                  id="isHistoricalPayout"
-                  checked={isHistoricalPayout}
-                  onChange={(e) => setIsHistoricalPayout(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-input text-amber-500 focus:ring-amber-500"
-                />
-                <div className="space-y-0.5">
-                  <label htmlFor="isHistoricalPayout" className="text-xs font-semibold text-foreground cursor-pointer">
-                    Payout Already Received Before Tracking
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Actual Prize Payout Received (₹)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="1"
+                value={wonPayoutAmount}
+                onChange={(e) => setWonPayoutAmount(e.target.value)}
+                required
+                placeholder="e.g., 90000"
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-bold text-amber-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+
+            {!isHistoricalPayout && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                    Payout Destination
                   </label>
-                  <p className="text-[11px] text-muted-foreground">
-                    Enable if you won and received this prize payout in a prior month before tracking it in this app. It will be recorded under Investment Returns without altering current bank or cash balances.
-                  </p>
+                  <Select value={wonDestinationType} onValueChange={(val) => setWonDestinationType(val as any)}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Destination" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bank">Bank Account</SelectItem>
+                      <SelectItem value="cash">Cash in Hand</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
 
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Actual Prize Payout Received (₹)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="1"
-                  value={wonPayoutAmount}
-                  onChange={(e) => setWonPayoutAmount(e.target.value)}
-                  required
-                  placeholder="e.g., 90000"
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-bold text-amber-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </div>
-
-              {!isHistoricalPayout && (
-                <div className="grid grid-cols-2 gap-3">
+                {wonDestinationType === 'bank' && (
                   <div className="space-y-1">
                     <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                      Payout Destination
+                      Credited Bank Account
                     </label>
-                    <Select value={wonDestinationType} onValueChange={(val) => setWonDestinationType(val as any)}>
+                    <Select value={wonAccountId} onValueChange={setWonAccountId}>
                       <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Destination" />
+                        <SelectValue placeholder="Select Account" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bank">Bank Account</SelectItem>
-                        <SelectItem value="cash">Cash in Hand</SelectItem>
+                        {accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.accountName}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {wonDestinationType === 'bank' && (
-                    <div className="space-y-1">
-                      <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                        Credited Bank Account
-                      </label>
-                      <Select value={wonAccountId} onValueChange={setWonAccountId}>
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Select Account" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {accounts.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.accountName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Winning Notes / Dividend Details
-                </label>
-                <input
-                  type="text"
-                  placeholder="Auction discount, dividend deduction notes..."
-                  value={wonNotes}
-                  onChange={(e) => setWonNotes(e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
+                )}
               </div>
+            )}
 
-              <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400 space-y-1">
-                <p className="font-semibold">Financial Safety Rules:</p>
-                <p>
-                  {isHistoricalPayout
-                    ? '• Historical payout records the won prize in your ledger without crediting your bank account.'
-                    : '• Payout is recorded as an inflow transaction, crediting your chosen account once.'}
-                </p>
-                <p>• Monthly contributions continue until the full chit duration ends.</p>
-              </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Winning Notes / Dividend Details
+              </label>
+              <input
+                type="text"
+                placeholder="Auction discount, dividend deduction notes..."
+                value={wonNotes}
+                onChange={(e) => setWonNotes(e.target.value)}
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
 
-              <CardFooter className="p-0 pt-3 flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowWonModal(false)}
-                  disabled={submittingWon}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={submittingWon}
-                  className="gap-2 bg-amber-600 hover:bg-amber-500 text-white"
-                >
-                  {submittingWon ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
-                  <span>{submittingWon ? 'Processing...' : 'Confirm Chit Won & Credit Payout'}</span>
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400 space-y-1">
+              <p className="font-semibold">Financial Safety Rules:</p>
+              <p>
+                {isHistoricalPayout
+                  ? '• Historical payout records the won prize in your ledger without crediting your bank account.'
+                  : '• Payout is recorded as an inflow transaction, crediting your chosen account once.'}
+              </p>
+              <p>• Monthly contributions continue until the full chit duration ends.</p>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowWonModal(false)}
+                disabled={submittingWon}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submittingWon}
+                className="gap-2 bg-amber-600 hover:bg-amber-500 text-white"
+              >
+                {submittingWon ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
+                <span>{submittingWon ? 'Processing...' : 'Confirm Chit Won & Credit Payout'}</span>
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

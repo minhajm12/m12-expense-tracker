@@ -74,6 +74,8 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
       targetCreditCardId = paymentQuery.replace('card:', '');
     } else if (paymentQuery.startsWith('method:')) {
       targetPaymentMethod = paymentQuery.replace('method:', '');
+    } else {
+      targetPaymentMethod = paymentQuery;
     }
   }
 
@@ -196,7 +198,7 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
         amount: r.amount,
         category: r.type === LendingBorrowingType.LENDING ? 'Lending' : 'Borrowing',
         paymentMethod: r.paymentMethod,
-        paymentChannel: 'offline',
+        paymentChannel: r.paymentChannel || (r.paymentMethod === 'upi' ? 'online' : 'offline'),
         accountId: bAccIdStr,
         bankAccountId: bAccIdStr,
         bankAccountName: bAccIdStr ? bankNameMap.get(bAccIdStr) : undefined,
@@ -228,7 +230,7 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
             amount: rep.amount,
             category: isLending ? 'Lending Repayment' : 'Debt Repayment',
             paymentMethod: rep.paymentMethod,
-            paymentChannel: 'offline',
+            paymentChannel: rep.paymentChannel || (rep.paymentMethod === 'upi' ? 'online' : 'offline'),
             accountId: repBAccIdStr,
             bankAccountId: repBAccIdStr,
             bankAccountName: repBAccIdStr ? bankNameMap.get(repBAccIdStr) : undefined,
@@ -298,7 +300,10 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
     if (timeB !== timeA) return timeB - timeA;
     const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return createdB - createdA;
+    if (createdB !== createdA) return createdB - createdA;
+    const idA = String(a.id || a._id || '');
+    const idB = String(b.id || b._id || '');
+    return idB.localeCompare(idA);
   });
 
   const total = combined.length;
@@ -341,7 +346,7 @@ export const getTransactionById = async (req: Request, res: Response): Promise<v
       amount: lb.amount,
       category: lb.type === LendingBorrowingType.LENDING ? 'Lending' : 'Borrowing',
       paymentMethod: lb.paymentMethod,
-      paymentChannel: 'offline',
+      paymentChannel: lb.paymentChannel || (lb.paymentMethod === 'upi' ? 'online' : 'offline'),
       accountId: lb.bankAccountId ? lb.bankAccountId.toString() : undefined,
       date: lb.date,
       merchantOrRecipient: lb.personName,
@@ -378,7 +383,7 @@ export const getTransactionById = async (req: Request, res: Response): Promise<v
       amount: rep.amount,
       category: isLending ? 'Lending Repayment' : 'Debt Repayment',
       paymentMethod: rep.paymentMethod,
-      paymentChannel: 'offline',
+      paymentChannel: rep.paymentChannel || (rep.paymentMethod === 'upi' ? 'online' : 'offline'),
       accountId: rep.bankAccountId ? rep.bankAccountId.toString() : undefined,
       date: rep.date,
       merchantOrRecipient: lb.personName,

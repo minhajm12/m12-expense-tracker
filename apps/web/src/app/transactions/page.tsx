@@ -16,7 +16,17 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   ArrowLeftRight,
   Plus,
@@ -114,6 +124,35 @@ export default function TransactionsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [paginationError, setPaginationError] = useState(false);
+
+  // Infinite scroll sentinel & state tracking refs to prevent stale closures
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(loading);
+  const loadingMoreRef = useRef(loadingMore);
+  const hasMoreRef = useRef(hasMore);
+  const pageRef = useRef(page);
+  const paginationErrorRef = useRef(paginationError);
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  useEffect(() => {
+    loadingMoreRef.current = loadingMore;
+  }, [loadingMore]);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    paginationErrorRef.current = paginationError;
+  }, [paginationError]);
 
   // Cancellation and in-flight request tracking
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -160,7 +199,9 @@ export default function TransactionsPage() {
   const [transferNotes, setTransferNotes] = useState('');
 
   const fetchData = async (targetPage = 1, append = false) => {
-    if (abortControllerRef.current) {
+    if (append && loadingMoreRef.current) return;
+
+    if (!append && abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     const controller = new AbortController();
@@ -169,8 +210,10 @@ export default function TransactionsPage() {
 
     if (append) {
       setLoadingMore(true);
+      setPaginationError(false);
     } else {
       setLoading(true);
+      setPaginationError(false);
     }
 
     try {
@@ -184,71 +227,100 @@ export default function TransactionsPage() {
       if (typeFilter !== 'all') queryParams += `&type=${typeFilter}`;
       if (paymentFilter !== 'all') queryParams += `&payment=${encodeURIComponent(paymentFilter)}`;
 
-      const [txRes, accRes, cardRes, catRes] = await Promise.all([
-        fetch(`${getApiUrl()}/api/v1/transactions${queryParams}`, {
+      if (append) {
+        // Fast path for infinite scroll next page
+        const txRes = await fetch(`${getApiUrl()}/api/v1/transactions${queryParams}`, {
           credentials: 'include',
           signal: controller.signal,
-        }),
-        fetch(`${getApiUrl()}/api/v1/accounts`, {
-          credentials: 'include',
-          signal: controller.signal,
-        }),
-        fetch(`${getApiUrl()}/api/v1/credit-cards`, {
-          credentials: 'include',
-          signal: controller.signal,
-        }),
-        fetch(`${getApiUrl()}/api/v1/categories`, {
-          credentials: 'include',
-          signal: controller.signal,
-        }),
-      ]);
+        });
+        const txJson = await txRes.json();
+        if (requestIdRef.current !== currentRequestId) return;
 
-      const [txJson, accJson, cardJson, catJson] = await Promise.all([
-        txRes.json(),
-        accRes.json(),
-        cardRes.json(),
-        catRes.json(),
-      ]);
-
-      // Check for stale response
-      if (requestIdRef.current !== currentRequestId) return;
-
-      if (txJson.success) {
-        if (append) {
-          setTransactions((prev) => [...prev, ...(txJson.data || [])]);
+        if (txJson.success) {
+          const incoming = txJson.data || [];
+          setTransactions((prev) => {
+            const existingIds = new Set(prev.map((t) => t.id || t._id));
+            const uniqueIncoming = incoming.filter((t: any) => !existingIds.has(t.id || t._id));
+            return [...prev, ...uniqueIncoming];
+          });
+          const meta = txJson.pagination || txJson.meta || {};
+          setTotalCount(meta.total ?? 0);
+          setHasMore(Boolean(meta.hasMore));
+          setPage(targetPage);
+          setPaginationError(false);
         } else {
-          setTransactions(txJson.data || []);
+          setPaginationError(true);
+          toast.error(txJson.error?.message || 'Failed to load more transactions');
         }
-        setTotalCount(txJson.pagination?.total || 0);
-        setHasMore(Boolean(txJson.pagination?.hasMore));
-        setPage(targetPage);
-      }
-      if (accJson.success) {
-        setAccounts(accJson.data || []);
-        if (accJson.data?.length > 0 && !txAccountId) {
-          setTxAccountId(accJson.data[0].id);
-          setSourceAccountId(accJson.data[0].id);
-          if (accJson.data.length > 1) {
-            setDestAccountId(accJson.data[1].id);
+      } else {
+        const [txRes, accRes, cardRes, catRes] = await Promise.all([
+          fetch(`${getApiUrl()}/api/v1/transactions${queryParams}`, {
+            credentials: 'include',
+            signal: controller.signal,
+          }),
+          fetch(`${getApiUrl()}/api/v1/accounts`, {
+            credentials: 'include',
+            signal: controller.signal,
+          }),
+          fetch(`${getApiUrl()}/api/v1/credit-cards`, {
+            credentials: 'include',
+            signal: controller.signal,
+          }),
+          fetch(`${getApiUrl()}/api/v1/categories`, {
+            credentials: 'include',
+            signal: controller.signal,
+          }),
+        ]);
+
+        const [txJson, accJson, cardJson, catJson] = await Promise.all([
+          txRes.json(),
+          accRes.json(),
+          cardRes.json(),
+          catRes.json(),
+        ]);
+
+        if (requestIdRef.current !== currentRequestId) return;
+
+        if (txJson.success) {
+          setTransactions(txJson.data || []);
+          const meta = txJson.pagination || txJson.meta || {};
+          setTotalCount(meta.total ?? 0);
+          setHasMore(Boolean(meta.hasMore));
+          setPage(targetPage);
+          setPaginationError(false);
+        } else {
+          toast.error(txJson.error?.message || 'Failed to load transactions');
+        }
+        if (accJson.success) {
+          setAccounts(accJson.data || []);
+          if (accJson.data?.length > 0 && !txAccountId) {
+            setTxAccountId(accJson.data[0].id);
+            setSourceAccountId(accJson.data[0].id);
+            if (accJson.data.length > 1) {
+              setDestAccountId(accJson.data[1].id);
+            }
           }
         }
-      }
-      if (cardJson.success) {
-        setCreditCards(cardJson.data || []);
-        if (cardJson.data?.length > 0 && !txCreditCardId) {
-          setTxCreditCardId(cardJson.data[0].id);
+        if (cardJson.success) {
+          setCreditCards(cardJson.data || []);
+          if (cardJson.data?.length > 0 && !txCreditCardId) {
+            setTxCreditCardId(cardJson.data[0].id);
+          }
         }
-      }
-      if (catJson.success) {
-        setCategories(catJson.data || []);
-        if (catJson.data?.length > 0 && !txCategory) {
-          setTxCategory(catJson.data[0].name);
+        if (catJson.success) {
+          setCategories(catJson.data || []);
+          if (catJson.data?.length > 0 && !txCategory) {
+            setTxCategory(catJson.data[0].name);
+          }
         }
       }
     } catch (err: any) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         // Stale in-flight request cancelled; ignore
         return;
+      }
+      if (append) {
+        setPaginationError(true);
       }
       toast.error('Network error loading financial data');
     } finally {
@@ -258,6 +330,44 @@ export default function TransactionsPage() {
       }
     }
   };
+
+  const handleRetryPagination = () => {
+    setPaginationError(false);
+    fetchData(pageRef.current + 1, true);
+  };
+
+  // IntersectionObserver for Infinite Scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (
+          entry &&
+          entry.isIntersecting &&
+          !loadingRef.current &&
+          !loadingMoreRef.current &&
+          hasMoreRef.current &&
+          !paginationErrorRef.current
+        ) {
+          fetchData(pageRef.current + 1, true);
+        }
+      },
+      {
+        root: null,
+        rootMargin: '250px',
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, paginationError, loading, loadingMore]);
 
   const handleLoadMore = () => {
     if (loadingMore || !hasMore) return;
@@ -609,7 +719,12 @@ export default function TransactionsPage() {
                 placeholder="Search transactions by title, merchant, or notes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchData()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setPage(1);
+                    fetchData(1, false);
+                  }
+                }}
                 className="flex h-10 w-full rounded-lg border border-input bg-background pl-9 pr-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -677,43 +792,49 @@ export default function TransactionsPage() {
               </Select>
 
               {/* Payment Filter */}
-              <select
+              <Select
                 value={paymentFilter}
-                onChange={(e) => setPaymentFilter(e.target.value)}
-                className="flex h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                title="Filter by payment source"
+                onValueChange={(val) => setPaymentFilter(val)}
               >
-                <option value="all">All Payments</option>
+                <SelectTrigger className="h-10 text-xs sm:text-sm w-[150px]" title="Filter by payment source">
+                  <SelectValue placeholder="Payment" />
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  <SelectItem value="all">All Payments</SelectItem>
 
-                <optgroup label="Payment Methods">
-                  <option value="method:upi">UPI</option>
-                  <option value="method:cash">Cash in Hand</option>
-                  <option value="method:net_banking">Net Banking</option>
-                  <option value="method:debit_card">Debit Card</option>
-                  <option value="method:credit_card">Credit Card</option>
-                  <option value="method:bank_transfer">Bank Transfer</option>
-                </optgroup>
+                  <SelectGroup>
+                    <SelectLabel>Payment Methods</SelectLabel>
+                    <SelectItem value="method:upi">UPI</SelectItem>
+                    <SelectItem value="method:cash">Cash in Hand</SelectItem>
+                    <SelectItem value="method:net_banking">Net Banking</SelectItem>
+                    <SelectItem value="method:debit_card">Debit Card</SelectItem>
+                    <SelectItem value="method:credit_card">Credit Card</SelectItem>
+                    <SelectItem value="method:bank_transfer">Bank Transfer</SelectItem>
+                  </SelectGroup>
 
-                {accounts.length > 0 && (
-                  <optgroup label="Bank Accounts">
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={`account:${acc.id}`}>
-                        {acc.accountName} {acc.bankName ? `(${acc.bankName})` : ''}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
+                  {accounts.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Bank Accounts</SelectLabel>
+                      {accounts.map((acc) => (
+                        <SelectItem key={acc.id} value={`account:${acc.id}`}>
+                          {acc.accountName} {acc.bankName ? `(${acc.bankName})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
 
-                {creditCards.length > 0 && (
-                  <optgroup label="Credit Cards">
-                    {creditCards.map((card) => (
-                      <option key={card.id} value={`card:${card.id}`}>
-                        {card.cardNickname} {card.lastFourDigits ? `(•••• ${card.lastFourDigits})` : ''}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
+                  {creditCards.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Credit Cards</SelectLabel>
+                      {creditCards.map((card) => (
+                        <SelectItem key={card.id} value={`card:${card.id}`}>
+                          {card.cardNickname} {card.lastFourDigits ? `(•••• ${card.lastFourDigits})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -830,13 +951,13 @@ export default function TransactionsPage() {
 
                           <td className="p-3.5">
                             <span className="capitalize text-xs font-medium text-foreground">
-                              {tx.paymentMethod ? tx.paymentMethod.replace('_', ' ') : 'Cash'}
+                              {tx.paymentMethod === 'upi' ? 'UPI' : (tx.paymentMethod ? tx.paymentMethod.replace('_', ' ') : 'Cash')}
                             </span>
                           </td>
 
                           <td className="p-3.5">
                             <Badge variant="outline" className="capitalize text-[11px]">
-                              offline
+                              {tx.paymentChannel || (tx.paymentMethod === 'upi' ? 'online' : 'offline')}
                             </Badge>
                           </td>
 
@@ -1022,31 +1143,45 @@ export default function TransactionsPage() {
             </div>
           )}
 
-          {/* Lazy Loading / Server-side Pagination Controls */}
-          {hasMore && (
-            <div className="p-4 border-t border-border flex justify-center bg-card">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="gap-2 font-medium text-xs rounded-xl"
-              >
-                {loadingMore && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-                <span>
-                  {loadingMore
-                    ? 'Loading More...'
-                    : `Load More Transactions (${transactions.length} of ${totalCount})`}
-                </span>
-              </Button>
-            </div>
-          )}
+          {/* Infinite Scroll Sentinel and Status Displays */}
+          <div ref={sentinelRef} className="w-full">
+            {loadingMore && (
+              <div className="p-4 border-t border-border flex items-center justify-center gap-2.5 bg-card text-muted-foreground text-xs font-medium">
+                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                <span>Loading more transactions...</span>
+              </div>
+            )}
 
-          {!hasMore && transactions.length > 0 && (
-            <div className="py-3 px-4 border-t border-border/60 text-center text-xs text-muted-foreground bg-muted/10">
-              Showing all {totalCount} records
-            </div>
-          )}
+            {paginationError && (
+              <div className="p-4 border-t border-destructive/20 flex flex-col sm:flex-row items-center justify-center gap-3 bg-destructive/5 text-destructive text-xs">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Failed to load additional transactions.</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetryPagination}
+                  className="h-7 text-xs border-destructive/30 hover:bg-destructive/10 text-foreground"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1.5" />
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {hasMore && !loadingMore && !paginationError && (
+              <div className="py-2.5 flex items-center justify-center text-xs text-muted-foreground/60">
+                <span className="sr-only">Scroll down to load more</span>
+              </div>
+            )}
+
+            {!hasMore && transactions.length > 0 && !loading && (
+              <div className="py-3 px-4 border-t border-border/60 text-center text-xs text-muted-foreground bg-muted/10">
+                Showing all {totalCount} records • You've reached the end
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -1058,18 +1193,17 @@ export default function TransactionsPage() {
       />
 
       {/* Edit Transaction Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Edit Transaction</CardTitle>
-              <CardDescription>
-                Update transaction details. Financial balances and statements will be recalculated automatically.
-              </CardDescription>
-            </CardHeader>
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogDescription>
+              Update transaction details. Financial balances and statements will be recalculated automatically.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleUpdateTransaction}>
-              <CardContent className="space-y-4">
+          <form onSubmit={handleUpdateTransaction} className="space-y-4 pt-2">
+            <div className="space-y-4">
                 {/* 1. Transaction Type */}
                 <div className="grid grid-cols-3 gap-1.5 p-1 rounded-lg bg-muted">
                   <button
@@ -1153,18 +1287,18 @@ export default function TransactionsPage() {
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Category *
                   </label>
-                  <select
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  >
-                    {effectiveEditCategories.map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={editCategory} onValueChange={setEditCategory}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {effectiveEditCategories.map((c) => (
+                        <SelectItem key={c.id} value={c.name}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* 6 & 7. Payment Method & Channel */}
@@ -1173,36 +1307,42 @@ export default function TransactionsPage() {
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Payment Method *
                     </label>
-                    <select
+                    <Select
                       value={editPaymentMethod}
-                      onChange={(e) => handlePaymentMethodChange(e.target.value as PaymentMethod, true)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring capitalize"
-                      required
+                      onValueChange={(val) => handlePaymentMethodChange(val as PaymentMethod, true)}
                     >
-                      {Object.values(PaymentMethod).map((m) => (
-                        <option key={m} value={m}>
-                          {m.replace('_', ' ')}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm capitalize">
+                        <SelectValue placeholder="Select Payment Method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(PaymentMethod).map((m) => (
+                          <SelectItem key={m} value={m} className="capitalize">
+                            {m.replace('_', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Payment Channel *
                     </label>
-                    <select
+                    <Select
                       value={editPaymentChannel}
-                      onChange={(e) => setEditPaymentChannel(e.target.value as PaymentChannel)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring capitalize"
-                      required
+                      onValueChange={(val) => setEditPaymentChannel(val as PaymentChannel)}
                     >
-                      {Object.values(PaymentChannel).map((ch) => (
-                        <option key={ch} value={ch}>
-                          {ch}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm capitalize">
+                        <SelectValue placeholder="Select Payment Channel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(PaymentChannel).map((ch) => (
+                          <SelectItem key={ch} value={ch} className="capitalize">
+                            {ch}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -1220,19 +1360,21 @@ export default function TransactionsPage() {
                         No credit cards available. Please add a credit card first.
                       </div>
                     ) : (
-                      <select
-                        value={editCreditCardId}
-                        onChange={(e) => setEditCreditCardId(e.target.value)}
-                        className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        required
+                      <Select
+                        value={editCreditCardId || undefined}
+                        onValueChange={setEditCreditCardId}
                       >
-                        <option value="">Select Credit Card *</option>
-                        {creditCards.map((card) => (
-                          <option key={card.id} value={card.id}>
-                            {card.cardNickname} • {card.issuingBank} (•••• {card.lastFourDigits || 'Card'})
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Select Credit Card *" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {creditCards.map((card) => (
+                            <SelectItem key={card.id} value={card.id}>
+                              {card.cardNickname} • {card.issuingBank} (•••• {card.lastFourDigits || 'Card'})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
                 ) : (
@@ -1240,20 +1382,24 @@ export default function TransactionsPage() {
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {editPaymentMethod === PaymentMethod.CASH ? 'Cash / Bank Account (Optional)' : 'Bank Account *'}
                     </label>
-                    <select
-                      value={editAccountId}
-                      onChange={(e) => setEditAccountId(e.target.value)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      required={editPaymentMethod !== PaymentMethod.CASH}
+                    <Select
+                      value={editAccountId || (editPaymentMethod === PaymentMethod.CASH ? 'none' : undefined)}
+                      onValueChange={(val) => setEditAccountId(val === 'none' ? '' : val)}
                     >
-                      {editPaymentMethod === PaymentMethod.CASH && <option value="">Cash in Hand (No Bank Debit)</option>}
-                      {editPaymentMethod !== PaymentMethod.CASH && <option value="">Select Bank Account *</option>}
-                      {accounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="Select Bank Account *" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {editPaymentMethod === PaymentMethod.CASH && (
+                          <SelectItem value="none">Cash in Hand (No Bank Debit)</SelectItem>
+                        )}
+                        {accounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
@@ -1304,119 +1450,116 @@ export default function TransactionsPage() {
                     </label>
                   </div>
                 )}
-              </CardContent>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Changes
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Account Transfer Modal */}
-      {showTransferModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Account Transfer</CardTitle>
-              <CardDescription>
-                Atomically moves funds between accounts without altering net income or expense totals.
-              </CardDescription>
-            </CardHeader>
+      <Dialog open={showTransferModal} onOpenChange={setShowTransferModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Account Transfer</DialogTitle>
+            <DialogDescription>
+              Atomically moves funds between accounts without altering net income or expense totals.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleExecuteTransfer}>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Source Account (-) *
-                    </label>
-                    <Select
-                      value={sourceAccountId}
-                      onValueChange={(val) => setSourceAccountId(val)}
-                    >
-                      <SelectTrigger className="h-10 text-sm">
-                        <SelectValue placeholder="Source Account" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {accounts.map((acc) => (
-                          <SelectItem key={acc.id} value={acc.id}>
-                            {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Destination Account (+) *
-                    </label>
-                    <Select
-                      value={destAccountId}
-                      onValueChange={(val) => setDestAccountId(val)}
-                    >
-                      <SelectTrigger className="h-10 text-sm">
-                        <SelectValue placeholder="Destination Account" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {accounts.map((acc) => (
-                          <SelectItem key={acc.id} value={acc.id}>
-                            {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+          <form onSubmit={handleExecuteTransfer} className="space-y-4 pt-2">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Source Account (-) *
+                  </label>
+                  <Select
+                    value={sourceAccountId}
+                    onValueChange={(val) => setSourceAccountId(val)}
+                  >
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Source Account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Transfer Amount *
+                    Destination Account (+) *
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
-                    value={transferAmount}
-                    onChange={(e) => setTransferAmount(e.target.value)}
-                    required
-                  />
+                  <Select
+                    value={destAccountId}
+                    onValueChange={(val) => setDestAccountId(val)}
+                  >
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Destination Account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Transfer Notes (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Monthly savings allocation"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={transferNotes}
-                    onChange={(e) => setTransferNotes(e.target.value)}
-                  />
-                </div>
-              </CardContent>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Transfer Amount *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  required
+                />
+              </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowTransferModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Execute Transfer
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Transfer Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Monthly savings allocation"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={transferNotes}
+                  onChange={(e) => setTransferNotes(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowTransferModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Execute Transfer
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -11,6 +11,21 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   Repeat,
   Plus,
   RefreshCw,
@@ -653,30 +668,19 @@ export default function RecurringPage() {
       )}
 
       {/* Add Recurring Rule Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-emerald-500" />
-                  New Recurring Schedule
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Schedule recurring expenses, salaries, or bill reminders.
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddModal(false)}
-                className="h-8 w-8 p-0 rounded-full"
-              >
-                ✕
-              </Button>
-            </div>
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-emerald-500" />
+              <span>New Recurring Schedule</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Schedule recurring expenses, salaries, or bill reminders.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleCreateRule} className="space-y-4">
+          <form onSubmit={handleCreateRule} className="space-y-4 pt-2">
               <div>
                 <label className="text-xs font-semibold text-foreground block mb-1">
                   Schedule Title
@@ -709,16 +713,20 @@ export default function RecurringPage() {
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Frequency
                   </label>
-                  <select
+                  <Select
                     value={frequency}
-                    onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    onValueChange={(val) => setFrequency(val as RecurringFrequency)}
                   >
-                    <option value={RecurringFrequency.WEEKLY}>Weekly</option>
-                    <option value={RecurringFrequency.MONTHLY}>Monthly</option>
-                    <option value={RecurringFrequency.QUARTERLY}>Quarterly</option>
-                    <option value={RecurringFrequency.YEARLY}>Yearly</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={RecurringFrequency.WEEKLY}>Weekly</SelectItem>
+                      <SelectItem value={RecurringFrequency.MONTHLY}>Monthly</SelectItem>
+                      <SelectItem value={RecurringFrequency.QUARTERLY}>Quarterly</SelectItem>
+                      <SelectItem value={RecurringFrequency.YEARLY}>Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -727,10 +735,10 @@ export default function RecurringPage() {
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Transaction Type
                   </label>
-                  <select
+                  <Select
                     value={type}
-                    onChange={(e) => {
-                      const newType = e.target.value as TransactionType;
+                    onValueChange={(val) => {
+                      const newType = val as TransactionType;
                       setType(newType);
                       if (newType === TransactionType.INVESTMENT) {
                         setCategory(DEFAULT_INVESTMENT_CATEGORIES[0].name);
@@ -740,34 +748,42 @@ export default function RecurringPage() {
                         setCategory(DEFAULT_EXPENSE_CATEGORIES[0].name);
                       }
                     }}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
-                    <option value={TransactionType.EXPENSE}>Expense</option>
-                    <option value={TransactionType.INCOME}>Income</option>
-                    <option value={TransactionType.INVESTMENT}>Investment</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={TransactionType.EXPENSE}>Expense</SelectItem>
+                      <SelectItem value={TransactionType.INCOME}>Income</SelectItem>
+                      <SelectItem value={TransactionType.INVESTMENT}>Investment</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Category
                   </label>
-                  <select
+                  <Select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    onValueChange={(val) => setCategory(val)}
                   >
-                    {(type === TransactionType.INCOME
-                      ? DEFAULT_INCOME_CATEGORIES
-                      : type === TransactionType.INVESTMENT
-                      ? DEFAULT_INVESTMENT_CATEGORIES
-                      : DEFAULT_EXPENSE_CATEGORIES
-                    ).map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(type === TransactionType.INCOME
+                        ? DEFAULT_INCOME_CATEGORIES
+                        : type === TransactionType.INVESTMENT
+                        ? DEFAULT_INVESTMENT_CATEGORIES
+                        : DEFAULT_EXPENSE_CATEGORIES
+                      ).map((c) => (
+                        <SelectItem key={c.name} value={c.name}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -776,32 +792,40 @@ export default function RecurringPage() {
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Payment Method
                   </label>
-                  <select
+                  <Select
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    onValueChange={(val) => setPaymentMethod(val as PaymentMethod)}
                   >
-                    <option value={PaymentMethod.UPI}>UPI</option>
-                    <option value={PaymentMethod.NET_BANKING}>Net Banking</option>
-                    <option value={PaymentMethod.DEBIT_CARD}>Debit Card</option>
-                    <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                    <option value={PaymentMethod.BANK_TRANSFER}>Bank Transfer</option>
-                    <option value={PaymentMethod.CASH}>Cash</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={PaymentMethod.UPI}>UPI</SelectItem>
+                      <SelectItem value={PaymentMethod.NET_BANKING}>Net Banking</SelectItem>
+                      <SelectItem value={PaymentMethod.DEBIT_CARD}>Debit Card</SelectItem>
+                      <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                      <SelectItem value={PaymentMethod.BANK_TRANSFER}>Bank Transfer</SelectItem>
+                      <SelectItem value={PaymentMethod.CASH}>Cash</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Payment Channel
                   </label>
-                  <select
+                  <Select
                     value={paymentChannel}
-                    onChange={(e) => setPaymentChannel(e.target.value as PaymentChannel)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    onValueChange={(val) => setPaymentChannel(val as PaymentChannel)}
                   >
-                    <option value={PaymentChannel.ONLINE}>Online</option>
-                    <option value={PaymentChannel.OFFLINE}>Offline</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={PaymentChannel.ONLINE}>Online</SelectItem>
+                      <SelectItem value={PaymentChannel.OFFLINE}>Offline</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -810,37 +834,43 @@ export default function RecurringPage() {
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Select Credit Card
                   </label>
-                  <select
-                    value={selectedCardId}
-                    onChange={(e) => setSelectedCardId(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
+                  <Select
+                    value={selectedCardId || undefined}
+                    onValueChange={(val) => setSelectedCardId(val)}
                   >
-                    <option value="">Select a card...</option>
-                    {cards.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.cardNickname}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a card..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cards.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.cardNickname}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : (
                 <div>
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Select Bank Account
                   </label>
-                  <select
-                    value={selectedAccountId}
-                    onChange={(e) => setSelectedAccountId(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  <Select
+                    value={selectedAccountId || 'none'}
+                    onValueChange={(val) => setSelectedAccountId(val === 'none' ? '' : val)}
                   >
-                    <option value="">None / External</option>
-                    {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.accountName}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="None / External" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None / External</SelectItem>
+                      {accounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.accountName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
@@ -881,7 +911,7 @@ export default function RecurringPage() {
                 </label>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <DialogFooter className="pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -897,32 +927,40 @@ export default function RecurringPage() {
                 >
                   {submitting ? 'Creating...' : 'Save Schedule'}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
-      {/* Log Now Confirmation & Discount Modal */}
-      {showLogModal && selectedRuleForLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Play className="h-5 w-5 text-emerald-500 fill-emerald-500" />
-                  {selectedRuleForLog.type === TransactionType.INVESTMENT
-                    ? 'Confirm & Log Investment'
-                    : 'Confirm & Log Payment'}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {selectedRuleForLog.type === TransactionType.INVESTMENT
-                    ? 'Review investment contribution details, confirm actual amount, and post.'
-                    : 'Review payment details, apply any bill discounts or promo codes, and post.'}
-                </p>
-              </div>
-            </div>
+          </DialogContent>
+        </Dialog>
 
-            <form onSubmit={handleConfirmLog} className="space-y-4">
+      {/* Log Now Confirmation & Discount Modal */}
+      <Dialog
+        open={Boolean(showLogModal && selectedRuleForLog)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowLogModal(false);
+            setSelectedRuleForLog(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5 text-emerald-500 fill-emerald-500" />
+              <span>
+                {selectedRuleForLog?.type === TransactionType.INVESTMENT
+                  ? 'Confirm & Log Investment'
+                  : 'Confirm & Log Payment'}
+              </span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {selectedRuleForLog?.type === TransactionType.INVESTMENT
+                ? 'Review investment contribution details, confirm actual amount, and post.'
+                : 'Review payment details, apply any bill discounts or promo codes, and post.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedRuleForLog && (
+            <form onSubmit={handleConfirmLog} className="space-y-4 pt-2">
               {/* Rule Summary Card */}
               <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 space-y-2">
                 <div className="flex items-center justify-between">
@@ -954,11 +992,10 @@ export default function RecurringPage() {
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Payment Method for This Payment
                   </label>
-                  <select
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  <Select
                     value={logPaymentMethod}
-                    onChange={(e) => {
-                      const pm = e.target.value as PaymentMethod;
+                    onValueChange={(val) => {
+                      const pm = val as PaymentMethod;
                       setLogPaymentMethod(pm);
                       if (pm === PaymentMethod.CREDIT_CARD && !logCreditCardId && cards.length > 0) {
                         setLogCreditCardId(cards[0].id);
@@ -972,10 +1009,15 @@ export default function RecurringPage() {
                       }
                     }}
                   >
-                    <option value={PaymentMethod.UPI}>UPI / Bank Account</option>
-                    <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                    <option value={PaymentMethod.CASH}>Cash in Hand</option>
-                  </select>
+                    <SelectTrigger className="h-10 w-full text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={PaymentMethod.UPI}>UPI / Bank Account</SelectItem>
+                      <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                      <SelectItem value={PaymentMethod.CASH}>Cash in Hand</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {logPaymentMethod === PaymentMethod.CREDIT_CARD && (
@@ -983,19 +1025,21 @@ export default function RecurringPage() {
                     <label className="text-xs font-semibold text-foreground block">
                       Select Credit Card *
                     </label>
-                    <select
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={logCreditCardId}
-                      onChange={(e) => setLogCreditCardId(e.target.value)}
-                      required
+                    <Select
+                      value={logCreditCardId || undefined}
+                      onValueChange={(val) => setLogCreditCardId(val)}
                     >
-                      <option value="">-- Choose Credit Card --</option>
-                      {cards.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.cardNickname}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 w-full text-sm">
+                        <SelectValue placeholder="-- Choose Credit Card --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cards.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.cardNickname}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <p className="text-[10px] text-muted-foreground">
                       Charges this credit card and increases outstanding liability. Does not debit your bank account.
                     </p>
@@ -1016,19 +1060,21 @@ export default function RecurringPage() {
                     <label className="text-xs font-semibold text-foreground block">
                       Select Bank Account *
                     </label>
-                    <select
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={logAccountId}
-                      onChange={(e) => setLogAccountId(e.target.value)}
-                      required
+                    <Select
+                      value={logAccountId || undefined}
+                      onValueChange={(val) => setLogAccountId(val)}
                     >
-                      <option value="">-- Choose Bank Account --</option>
-                      {accounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.accountName}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 w-full text-sm">
+                        <SelectValue placeholder="-- Choose Bank Account --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.accountName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <p className="text-[10px] text-muted-foreground">
                       Payment will be debited directly from this bank account.
                     </p>
@@ -1216,7 +1262,7 @@ export default function RecurringPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <DialogFooter className="pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -1239,11 +1285,11 @@ export default function RecurringPage() {
                     `Confirm & Log ${selectedRuleForLog.type === TransactionType.INVESTMENT ? 'Investment' : 'Payment'} (${formatCurrency(getLogCalculation().finalAmount, user?.currency || 'INR')})`
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

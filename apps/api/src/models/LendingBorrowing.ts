@@ -6,6 +6,7 @@ export interface ILendingRepayment {
   amount: number;
   date: Date;
   paymentMethod: 'upi' | 'cash';
+  paymentChannel?: 'online' | 'offline';
   bankAccountId?: mongoose.Types.ObjectId;
   notes?: string;
   isHistorical?: boolean;
@@ -22,6 +23,7 @@ export interface ILendingBorrowing extends Document {
   date: Date;
   dueDate?: Date;
   paymentMethod: 'upi' | 'cash';
+  paymentChannel?: 'online' | 'offline';
   bankAccountId?: mongoose.Types.ObjectId;
   description?: string;
   notes?: string;
@@ -51,6 +53,13 @@ const LendingRepaymentSchema = new Schema(
       type: String,
       enum: ['upi', 'cash'],
       required: true,
+    },
+    paymentChannel: {
+      type: String,
+      enum: ['online', 'offline'],
+      default: function (this: any) {
+        return this.paymentMethod === 'upi' ? 'online' : 'offline';
+      },
     },
     bankAccountId: {
       type: Schema.Types.ObjectId,
@@ -129,6 +138,13 @@ const LendingBorrowingSchema = new Schema<ILendingBorrowing>(
       required: true,
       default: 'cash',
     },
+    paymentChannel: {
+      type: String,
+      enum: ['online', 'offline'],
+      default: function (this: any) {
+        return this.paymentMethod === 'upi' ? 'online' : 'offline';
+      },
+    },
     bankAccountId: {
       type: Schema.Types.ObjectId,
       ref: 'BankAccount',
@@ -176,6 +192,7 @@ const LendingBorrowingSchema = new Schema<ILendingBorrowing>(
         ret.id = ret._id ? ret._id.toString() : undefined;
         ret.userId = ret.userId ? ret.userId.toString() : undefined;
         ret.bankAccountId = ret.bankAccountId ? ret.bankAccountId.toString() : undefined;
+        ret.paymentChannel = ret.paymentChannel || (ret.paymentMethod === 'upi' ? 'online' : 'offline');
         ret.isHistorical = Boolean(ret.isHistorical);
         ret.accountingMode = ret.accountingMode || (ret.isHistorical ? 'historical' : 'live');
         if (Array.isArray(ret.repayments)) {
@@ -186,6 +203,7 @@ const LendingBorrowingSchema = new Schema<ILendingBorrowing>(
                 amount: r.amount,
                 date: r.date,
                 paymentMethod: r.paymentMethod,
+                paymentChannel: r.paymentChannel || (r.paymentMethod === 'upi' ? 'online' : 'offline'),
                 bankAccountId: r.bankAccountId ? r.bankAccountId.toString() : undefined,
                 notes: r.notes,
                 isHistorical: Boolean(r.isHistorical),

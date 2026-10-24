@@ -10,6 +10,31 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   HandCoins,
   ArrowUpRight,
   ArrowDownLeft,
@@ -313,6 +338,7 @@ export default function LendingBorrowingPage() {
           amount: repayNum,
           date: repayData.date,
           paymentMethod: repayData.paymentMethod,
+          paymentChannel: repayData.paymentMethod === 'upi' ? 'online' : 'offline',
           bankAccountId: (!repayData.isHistorical && repayData.paymentMethod === 'upi') ? repayData.bankAccountId : undefined,
           notes: repayData.notes.trim() || undefined,
           isHistorical: repayData.isHistorical,
@@ -633,16 +659,20 @@ export default function LendingBorrowingPage() {
             />
           </div>
 
-          <select
+          <Select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="h-8 px-2.5 rounded-lg border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onValueChange={(val) => setStatusFilter(val as any)}
           >
-            <option value="all">All Statuses</option>
-            <option value="outstanding">Outstanding</option>
-            <option value="partially_settled">Partially Settled</option>
-            <option value="settled">Settled</option>
-          </select>
+            <SelectTrigger className="h-8 px-2.5 text-xs w-[140px]">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="outstanding">Outstanding</SelectItem>
+              <SelectItem value="partially_settled">Partially Settled</SelectItem>
+              <SelectItem value="settled">Settled</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -807,57 +837,45 @@ export default function LendingBorrowingPage() {
       )}
 
       {/* Add Record Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <CardHeader className="border-b border-border pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Record Lending or Borrowing</CardTitle>
-                  <CardDescription className="text-xs">
-                    Disbursements affect bank or physical cash balances directly without counting as income or expense.
-                  </CardDescription>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Record Lending or Borrowing</DialogTitle>
+            <DialogDescription className="text-xs">
+              Disbursements affect bank or physical cash balances directly without counting as income or expense.
+            </DialogDescription>
+          </DialogHeader>
 
-              {/* Lend vs Borrow Segmented Switch */}
-              <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/60 mt-3 border border-border">
-                <button
-                  type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, type: LendingBorrowingType.LENDING }))}
-                  className={`py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    formData.type === LendingBorrowingType.LENDING
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
-                  I Lent Money (Gave out)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, type: LendingBorrowingType.BORROWING }))}
-                  className={`py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    formData.type === LendingBorrowingType.BORROWING
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <ArrowDownLeft className="h-3.5 w-3.5 text-destructive" />
-                  I Borrowed Money (Received)
-                </button>
-              </div>
-            </CardHeader>
+          {/* Lend vs Borrow Segmented Switch */}
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/60 mt-1 border border-border">
+            <button
+              type="button"
+              onClick={() => setFormData((prev) => ({ ...prev, type: LendingBorrowingType.LENDING }))}
+              className={`py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                formData.type === LendingBorrowingType.LENDING
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
+              I Lent Money (Gave out)
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData((prev) => ({ ...prev, type: LendingBorrowingType.BORROWING }))}
+              className={`py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                formData.type === LendingBorrowingType.BORROWING
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ArrowDownLeft className="h-3.5 w-3.5 text-destructive" />
+              I Borrowed Money (Received)
+            </button>
+          </div>
 
-            <form onSubmit={handleCreateRecord} className="overflow-y-auto flex-1">
-              <CardContent className="space-y-4 pt-4">
+          <form onSubmit={handleCreateRecord} className="space-y-4 pt-2">
+            <div className="space-y-4">
                 {/* Past Lending Switch (Only for Lending) */}
                 {formData.type === LendingBorrowingType.LENDING && (
                   <div className="p-3.5 rounded-xl border border-border bg-muted/30 space-y-2">
@@ -1007,22 +1025,25 @@ export default function LendingBorrowingPage() {
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Bank Account {formData.isHistorical ? '(Recorded for Reference)' : '*'}
                     </label>
-                    <select
-                      required={!formData.isHistorical}
-                      value={formData.bankAccountId}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, bankAccountId: e.target.value }))}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    <Select
+                      value={formData.bankAccountId || undefined}
+                      onValueChange={(val) => setFormData((prev) => ({ ...prev, bankAccountId: val }))}
                     >
-                      {accounts.length === 0 ? (
-                        <option value="">No bank accounts available</option>
-                      ) : (
-                        accounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.accountName} ({a.bankName}) - Balance: {formatCurrency(a.currentBalance, user?.currency || 'INR')}
-                          </option>
-                        ))
-                      )}
-                    </select>
+                      <SelectTrigger className="h-10 w-full text-sm">
+                        <SelectValue placeholder="Select bank account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.length === 0 ? (
+                          <SelectItem value="none" disabled>No bank accounts available</SelectItem>
+                        ) : (
+                          accounts.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.accountName} ({a.bankName}) - Balance: {formatCurrency(a.currentBalance, user?.currency || 'INR')}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     <p className="text-[11px] text-muted-foreground">
                       {formData.isHistorical
                         ? 'Past loan reference — funding bank account is recorded without debiting your current balance.'
@@ -1070,45 +1091,38 @@ export default function LendingBorrowingPage() {
                     className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
-              </CardContent>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4 bg-muted/20">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Record
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Record
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Record Modal */}
-      {showEditModal && selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <CardHeader className="border-b border-border pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Edit Record</CardTitle>
-                  <CardDescription className="text-xs">
-                    Update information or principal amount. If changed, balances will recalculate cleanly.
-                  </CardDescription>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </CardHeader>
+      <Dialog
+        open={Boolean(showEditModal && selectedRecord)}
+        onOpenChange={(open) => {
+          if (!open) setShowEditModal(false);
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Record</DialogTitle>
+            <DialogDescription className="text-xs">
+              Update information or principal amount. If changed, balances will recalculate cleanly.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleUpdateRecord} className="overflow-y-auto flex-1">
-              <CardContent className="space-y-4 pt-4">
+          {selectedRecord && (
+            <form onSubmit={handleUpdateRecord} className="space-y-4 pt-2">
+            <div className="space-y-4">
                 {/* Past Lending Switch (Only for Lending) */}
                 {selectedRecord.type === LendingBorrowingType.LENDING && (
                   <div className="p-3.5 rounded-xl border border-border bg-muted/30 space-y-2">
@@ -1235,22 +1249,25 @@ export default function LendingBorrowingPage() {
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Bank Account {formData.isHistorical ? '(Recorded for Reference)' : '*'}
                     </label>
-                    <select
-                      required={!formData.isHistorical}
-                      value={formData.bankAccountId}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, bankAccountId: e.target.value }))}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    <Select
+                      value={formData.bankAccountId || undefined}
+                      onValueChange={(val) => setFormData((prev) => ({ ...prev, bankAccountId: val }))}
                     >
-                      {accounts.length === 0 ? (
-                        <option value="">No bank accounts available</option>
-                      ) : (
-                        accounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.accountName} ({a.bankName}) - Balance: {formatCurrency(a.currentBalance, user?.currency || 'INR')}
-                          </option>
-                        ))
-                      )}
-                    </select>
+                      <SelectTrigger className="h-10 w-full text-sm">
+                        <SelectValue placeholder="Select bank account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.length === 0 ? (
+                          <SelectItem value="none" disabled>No bank accounts available</SelectItem>
+                        ) : (
+                          accounts.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.accountName} ({a.bankName}) - Balance: {formatCurrency(a.currentBalance, user?.currency || 'INR')}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     <p className="text-[11px] text-muted-foreground">
                       {formData.isHistorical
                         ? 'Past loan reference — funding bank account is recorded without debiting your current balance.'
@@ -1293,52 +1310,46 @@ export default function LendingBorrowingPage() {
                     className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
-              </CardContent>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4 bg-muted/20">
-                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Changes
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Record Repayment Modal */}
-      {showRepayModal && selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader className="border-b border-border pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>
-                    {selectedRecord.type === LendingBorrowingType.LENDING
-                      ? `Record Receipt from ${selectedRecord.personName}`
-                      : `Repay ${selectedRecord.personName}`}
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Outstanding balance:{' '}
-                    <strong className="text-foreground font-mono">
-                      {formatCurrency(selectedRecord.outstandingAmount, user?.currency || 'INR')}
-                    </strong>
-                  </CardDescription>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowRepayModal(false)}
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </CardHeader>
+      <Dialog
+        open={Boolean(showRepayModal && selectedRecord)}
+        onOpenChange={(open) => {
+          if (!open) setShowRepayModal(false);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedRecord?.type === LendingBorrowingType.LENDING
+                ? `Record Receipt from ${selectedRecord?.personName}`
+                : `Repay ${selectedRecord?.personName}`}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Outstanding balance:{' '}
+              <strong className="text-foreground font-mono">
+                {selectedRecord ? formatCurrency(selectedRecord.outstandingAmount, user?.currency || 'INR') : ''}
+              </strong>
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleRecordRepayment}>
-              <CardContent className="space-y-4 pt-4">
+          {selectedRecord && (
+            <form onSubmit={handleRecordRepayment} className="space-y-4 pt-2">
+            <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Repayment Amount ({user?.currency || 'INR'} ₹) *
@@ -1435,18 +1446,21 @@ export default function LendingBorrowingPage() {
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Destination / Source Account *
                     </label>
-                    <select
-                      required
-                      value={repayData.bankAccountId}
-                      onChange={(e) => setRepayData((prev) => ({ ...prev, bankAccountId: e.target.value }))}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    <Select
+                      value={repayData.bankAccountId || undefined}
+                      onValueChange={(val) => setRepayData((prev) => ({ ...prev, bankAccountId: val }))}
                     >
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.accountName} ({a.bankName})
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 w-full text-sm">
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.accountName} ({a.bankName})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
@@ -1462,68 +1476,64 @@ export default function LendingBorrowingPage() {
                     className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
-              </CardContent>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4 bg-muted/20">
-                <Button type="button" variant="outline" onClick={() => setShowRepayModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Submit Repayment
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowRepayModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Submit Repayment
+              </Button>
+            </DialogFooter>
+          </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Details & Repayment Trail Modal */}
-      {showDetailModal && selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-xl shadow-2xl border-border animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <CardHeader className="border-b border-border pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
-                      selectedRecord.type === LendingBorrowingType.LENDING
-                        ? 'bg-primary/10 text-primary border-primary/20'
-                        : 'bg-destructive/10 text-destructive border-destructive/20'
-                    }`}
-                  >
-                    {selectedRecord.type === LendingBorrowingType.LENDING ? (
-                      <ArrowUpRight className="h-5 w-5" />
-                    ) : (
-                      <ArrowDownLeft className="h-5 w-5" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{selectedRecord.personName}</CardTitle>
-                      {selectedRecord.isHistorical && (
-                        <Badge variant="outline" className="text-[10px] font-medium border-amber-500/40 text-amber-400 bg-amber-500/10">
-                          Past Lending (Pre-tracking)
-                        </Badge>
-                      )}
-                    </div>
-                    <CardDescription className="text-xs">
-                      {selectedRecord.type === LendingBorrowingType.LENDING
-                        ? 'Money Lent (Asset Receivable)'
-                        : 'Money Borrowed (Liability Payable)'}
-                    </CardDescription>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowDetailModal(false)}
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+      <Dialog
+        open={Boolean(showDetailModal && selectedRecord)}
+        onOpenChange={(open) => {
+          if (!open) setShowDetailModal(false);
+        }}
+      >
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+                  selectedRecord?.type === LendingBorrowingType.LENDING
+                    ? 'bg-primary/10 text-primary border-primary/20'
+                    : 'bg-destructive/10 text-destructive border-destructive/20'
+                }`}
+              >
+                {selectedRecord?.type === LendingBorrowingType.LENDING ? (
+                  <ArrowUpRight className="h-5 w-5" />
+                ) : (
+                  <ArrowDownLeft className="h-5 w-5" />
+                )}
               </div>
-            </CardHeader>
+              <div>
+                <div className="flex items-center gap-2">
+                  <DialogTitle className="text-lg">{selectedRecord?.personName}</DialogTitle>
+                  {selectedRecord?.isHistorical && (
+                    <Badge variant="outline" className="text-[10px] font-medium border-amber-500/40 text-amber-400 bg-amber-500/10">
+                      Past Lending (Pre-tracking)
+                    </Badge>
+                  )}
+                </div>
+                <DialogDescription className="text-xs">
+                  {selectedRecord?.type === LendingBorrowingType.LENDING
+                    ? 'Money Lent (Asset Receivable)'
+                    : 'Money Borrowed (Liability Payable)'}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
 
-            <CardContent className="space-y-5 pt-4 overflow-y-auto flex-1">
+          {selectedRecord && (
+            <div className="space-y-5 pt-2">
               {/* Financial Snapshot */}
               <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-muted/30 border border-border text-center">
                 <div>
@@ -1651,80 +1661,81 @@ export default function LendingBorrowingPage() {
                   </div>
                 )}
               </div>
-            </CardContent>
+            </div>
+          )}
 
-            <CardFooter className="flex justify-between border-t border-border pt-4 bg-muted/20">
+          <DialogFooter className="flex justify-between border-t border-border pt-4">
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete Record
+            </Button>
+            <div className="flex gap-2">
               <Button
                 type="button"
-                variant="destructive"
+                variant="outline"
                 size="sm"
-                onClick={() => setShowDeleteConfirm(true)}
+                onClick={() => selectedRecord && openEditModal(selectedRecord)}
                 className="gap-1.5"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete Record
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
               </Button>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openEditModal(selectedRecord)}
-                  className="gap-1.5"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowDetailModal(false)}>
-                  Close
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowDetailModal(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Record Confirmation Dialog */}
-      {showDeleteConfirm && selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-destructive/40 animate-in zoom-in-95">
-            <CardHeader>
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-5 w-5 shrink-0" />
-                <CardTitle className="text-lg">Delete Record?</CardTitle>
-              </div>
-              <CardDescription className="text-xs text-muted-foreground pt-1">
-                Are you sure you want to delete this record for <strong>{selectedRecord.personName}</strong>?
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              {selectedRecord.isHistorical ? (
-                <p>
-                  This is a <strong>past loan</strong>. Deleting it will not alter your current bank accounts or Cash in Hand for the principal amount (since it was never debited). Any live repayments will be safely reversed.
-                </p>
-              ) : (
-                <p>
-                  Deleting this record will automatically and cleanly reverse all associated disbursements and live repayments from your bank balance and Cash in Hand.
-                </p>
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowDeleteConfirm(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteRecord}
-                isLoading={submitting}
-              >
-                Yes, Delete & Reverse
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+      <AlertDialog
+        open={Boolean(showDeleteConfirm && selectedRecord)}
+        onOpenChange={(open) => {
+          if (!open) setShowDeleteConfirm(false);
+        }}
+      >
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <AlertDialogTitle className="text-lg">Delete Record?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-xs text-muted-foreground pt-1">
+              Are you sure you want to delete this record for <strong>{selectedRecord?.personName}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 text-xs text-muted-foreground py-2">
+            {selectedRecord?.isHistorical ? (
+              <p>
+                This is a <strong>past loan</strong>. Deleting it will not alter your current bank accounts or Cash in Hand for the principal amount (since it was never debited). Any live repayments will be safely reversed.
+              </p>
+            ) : (
+              <p>
+                Deleting this record will automatically and cleanly reverse all associated disbursements and live repayments from your bank balance and Cash in Hand.
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRecord}
+              disabled={submitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {submitting ? 'Deleting...' : 'Yes, Delete & Reverse'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -15,6 +15,22 @@ import {
 import { emitDataChange } from '@/lib/data-sync';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Card,
   CardHeader,
@@ -242,39 +258,18 @@ export function RecordTransactionModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <Card
-        className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95 max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <CardHeader className="relative flex flex-row items-center justify-between pb-3">
-          <div>
-            <CardTitle>Record Transaction</CardTitle>
-            <CardDescription>
-              Manual financial posting with server-authoritative balance adjustment.
-            </CardDescription>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            type="button"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </CardHeader>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Record Transaction</DialogTitle>
+          <DialogDescription>
+            Manual financial posting with server-authoritative balance adjustment.
+          </DialogDescription>
+        </DialogHeader>
 
-        <form onSubmit={handleCreateTransaction}>
-          <CardContent className="space-y-4">
+        <form onSubmit={handleCreateTransaction} className="space-y-4 pt-2">
+          <div className="space-y-4">
             {/* 1. Transaction Type */}
             <div className="grid grid-cols-3 gap-1.5 p-1 rounded-lg bg-muted">
               <button
@@ -354,12 +349,10 @@ export function RecordTransactionModal({
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Date *
                 </label>
-                <input
-                  type="date"
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <DatePicker
                   value={txDate}
-                  onChange={(e) => setTxDate(e.target.value)}
-                  required
+                  onChange={(d) => setTxDate(d || formatDateToInput(new Date()))}
+                  className="h-10 text-sm"
                 />
               </div>
             </div>
@@ -369,18 +362,18 @@ export function RecordTransactionModal({
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Category *
               </label>
-              <select
-                value={txCategory}
-                onChange={(e) => setTxCategory(e.target.value)}
-                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                required
-              >
-                {effectiveCategories.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <Select value={txCategory} onValueChange={setTxCategory}>
+                <SelectTrigger className="h-10 text-sm">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {effectiveCategories.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* 6 & 7. Payment Method & Channel */}
@@ -389,36 +382,42 @@ export function RecordTransactionModal({
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Payment Method *
                 </label>
-                <select
+                <Select
                   value={txPaymentMethod}
-                  onChange={(e) => handlePaymentMethodChange(e.target.value as PaymentMethod)}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring capitalize"
-                  required
+                  onValueChange={(val) => handlePaymentMethodChange(val as PaymentMethod)}
                 >
-                  {Object.values(PaymentMethod).map((m) => (
-                    <option key={m} value={m}>
-                      {m.replace('_', ' ')}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 text-sm capitalize">
+                    <SelectValue placeholder="Select Payment Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(PaymentMethod).map((m) => (
+                      <SelectItem key={m} value={m} className="capitalize">
+                        {m.replace('_', ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Payment Channel *
                 </label>
-                <select
+                <Select
                   value={txPaymentChannel}
-                  onChange={(e) => setTxPaymentChannel(e.target.value as PaymentChannel)}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring capitalize"
-                  required
+                  onValueChange={(val) => setTxPaymentChannel(val as PaymentChannel)}
                 >
-                  {Object.values(PaymentChannel).map((ch) => (
-                    <option key={ch} value={ch}>
-                      {ch}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 text-sm capitalize">
+                    <SelectValue placeholder="Select Payment Channel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(PaymentChannel).map((ch) => (
+                      <SelectItem key={ch} value={ch} className="capitalize">
+                        {ch}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -437,19 +436,21 @@ export function RecordTransactionModal({
                     <span>No credit cards found. Please <Link href="/credit-cards" className="underline font-bold">add a credit card</Link> first.</span>
                   </div>
                 ) : (
-                  <select
-                    value={txCreditCardId}
-                    onChange={(e) => setTxCreditCardId(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
+                  <Select
+                    value={txCreditCardId || undefined}
+                    onValueChange={setTxCreditCardId}
                   >
-                    <option value="">Select Credit Card *</option>
-                    {creditCards.map((card) => (
-                      <option key={card.id} value={card.id}>
-                        {card.cardNickname} • {card.issuingBank} (•••• {card.lastFourDigits || 'Card'})
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Select Credit Card *" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {creditCards.map((card) => (
+                        <SelectItem key={card.id} value={card.id}>
+                          {card.cardNickname} • {card.issuingBank} (•••• {card.lastFourDigits || 'Card'})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             ) : (
@@ -457,20 +458,24 @@ export function RecordTransactionModal({
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {txPaymentMethod === PaymentMethod.CASH ? 'Cash / Bank Account (Optional)' : 'Bank Account *'}
                 </label>
-                <select
-                  value={txAccountId}
-                  onChange={(e) => setTxAccountId(e.target.value)}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  required={txPaymentMethod !== PaymentMethod.CASH}
+                <Select
+                  value={txAccountId || (txPaymentMethod === PaymentMethod.CASH ? 'none' : undefined)}
+                  onValueChange={(val) => setTxAccountId(val === 'none' ? '' : val)}
                 >
-                  {txPaymentMethod === PaymentMethod.CASH && <option value="">None / Physical Cash</option>}
-                  {txPaymentMethod !== PaymentMethod.CASH && <option value="">Select Bank Account *</option>}
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 text-sm">
+                    <SelectValue placeholder="Select Bank Account *" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {txPaymentMethod === PaymentMethod.CASH && (
+                      <SelectItem value="none">None / Physical Cash</SelectItem>
+                    )}
+                    {accounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.accountName} {acc.bankName ? `• ${acc.bankName}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
@@ -523,18 +528,18 @@ export function RecordTransactionModal({
                 </label>
               </div>
             )}
-          </CardContent>
+          </div>
 
-          <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
+          <DialogFooter className="pt-4 border-t border-border">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit" isLoading={submitting}>
               Post Transaction
             </Button>
-          </CardFooter>
+          </DialogFooter>
         </form>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

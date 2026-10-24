@@ -36,6 +36,14 @@ export interface ApiResponse<T = unknown> {
     hasMore?: boolean;
     [key: string]: unknown;
   };
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+  transactions?: T;
 }
 
 export interface ModulePreferences {
@@ -498,6 +506,7 @@ export interface LendingRepayment {
   amount: number;
   date: string;
   paymentMethod: 'upi' | 'cash';
+  paymentChannel?: PaymentChannel;
   bankAccountId?: string;
   bankAccountName?: string;
   notes?: string;
@@ -516,6 +525,7 @@ export interface LendingBorrowing {
   date: string;
   dueDate?: string;
   paymentMethod: 'upi' | 'cash';
+  paymentChannel?: PaymentChannel;
   bankAccountId?: string;
   bankAccountName?: string;
   description?: string;

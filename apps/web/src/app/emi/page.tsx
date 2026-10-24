@@ -13,6 +13,31 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Landmark,
   Plus,
   RefreshCw,
@@ -919,22 +944,19 @@ function EmiManagementContent() {
       )}
 
       {/* Add New EMI Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-xl rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Landmark className="h-5 w-5 text-amber-500" />
-                  Add New EMI Schedule
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Set up monthly installment parameters, due day, and financing details.
-                </p>
-              </div>
-            </div>
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-amber-500" />
+              Add New EMI Schedule
+            </DialogTitle>
+            <DialogDescription>
+              Set up monthly installment parameters, due day, and financing details.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleCreateEmi} className="space-y-4">
+          <form onSubmit={handleCreateEmi} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-foreground block mb-1">
@@ -1151,15 +1173,19 @@ function EmiManagementContent() {
                     <label className="text-xs font-semibold text-foreground block mb-1">
                       Default Payment Method *
                     </label>
-                    <select
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    <Select
                       value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                      onValueChange={(val) => setPaymentMethod(val as PaymentMethod)}
                     >
-                      <option value={PaymentMethod.UPI}>UPI / Bank Account</option>
-                      <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                      <option value={PaymentMethod.CASH}>Cash in Hand</option>
-                    </select>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="Payment Method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={PaymentMethod.UPI}>UPI / Bank Account</SelectItem>
+                        <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                        <SelectItem value={PaymentMethod.CASH}>Cash in Hand</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {paymentMethod === PaymentMethod.CREDIT_CARD ? (
@@ -1167,19 +1193,21 @@ function EmiManagementContent() {
                       <label className="text-xs font-semibold text-foreground block mb-1">
                         Select Default Credit Card *
                       </label>
-                      <select
-                        className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={selectedCardId}
-                        onChange={(e) => setSelectedCardId(e.target.value)}
-                        required
+                      <Select
+                        value={selectedCardId || undefined}
+                        onValueChange={setSelectedCardId}
                       >
-                        <option value="">-- Choose Credit Card --</option>
-                        {cards.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.cardNickname}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="-- Choose Credit Card --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {cards.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.cardNickname}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   ) : paymentMethod === PaymentMethod.CASH ? (
                     <div className="flex items-center text-xs text-muted-foreground pt-6">
@@ -1190,19 +1218,21 @@ function EmiManagementContent() {
                       <label className="text-xs font-semibold text-foreground block mb-1">
                         Select Default Bank Account *
                       </label>
-                      <select
-                        className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={selectedAccountId}
-                        onChange={(e) => setSelectedAccountId(e.target.value)}
-                        required
+                      <Select
+                        value={selectedAccountId || undefined}
+                        onValueChange={setSelectedAccountId}
                       >
-                        <option value="">-- Choose Bank Account --</option>
-                        {accounts.map((acc) => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.accountName}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="-- Choose Bank Account --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accounts.map((acc) => (
+                            <SelectItem key={acc.id} value={acc.id}>
+                              {acc.accountName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>
@@ -1278,15 +1308,19 @@ function EmiManagementContent() {
                             <label className="text-xs font-semibold text-foreground block mb-1">
                               Payment Source Method
                             </label>
-                            <select
-                              className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            <Select
                               value={downPaymentPaymentMethod}
-                              onChange={(e) => setDownPaymentPaymentMethod(e.target.value as PaymentMethod)}
+                              onValueChange={(val) => setDownPaymentPaymentMethod(val as PaymentMethod)}
                             >
-                              <option value={PaymentMethod.UPI}>UPI / Bank Account</option>
-                              <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                              <option value={PaymentMethod.CASH}>Cash in Hand</option>
-                            </select>
+                              <SelectTrigger className="h-10 text-sm">
+                                <SelectValue placeholder="Payment Method" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={PaymentMethod.UPI}>UPI / Bank Account</SelectItem>
+                                <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                                <SelectItem value={PaymentMethod.CASH}>Cash in Hand</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
 
                           {downPaymentPaymentMethod === PaymentMethod.CREDIT_CARD ? (
@@ -1294,16 +1328,19 @@ function EmiManagementContent() {
                               <label className="text-xs font-semibold text-foreground block mb-1">
                                 Select Credit Card *
                               </label>
-                              <select
-                                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                value={downPaymentCreditCardId}
-                                onChange={(e) => setDownPaymentCreditCardId(e.target.value)}
+                              <Select
+                                value={downPaymentCreditCardId || undefined}
+                                onValueChange={setDownPaymentCreditCardId}
                               >
-                                <option value="">-- Choose Credit Card --</option>
-                                {cards.map((c) => (
-                                  <option key={c.id} value={c.id}>{c.cardNickname}</option>
-                                ))}
-                              </select>
+                                <SelectTrigger className="h-10 text-sm">
+                                  <SelectValue placeholder="-- Choose Credit Card --" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {cards.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>{c.cardNickname}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           ) : downPaymentPaymentMethod === PaymentMethod.CASH ? (
                             <div className="flex items-center text-xs text-muted-foreground pt-6">
@@ -1314,16 +1351,19 @@ function EmiManagementContent() {
                               <label className="text-xs font-semibold text-foreground block mb-1">
                                 Select Bank Account *
                               </label>
-                              <select
-                                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                value={downPaymentAccountId}
-                                onChange={(e) => setDownPaymentAccountId(e.target.value)}
+                              <Select
+                                value={downPaymentAccountId || undefined}
+                                onValueChange={setDownPaymentAccountId}
                               >
-                                <option value="">-- Choose Bank Account --</option>
-                                {accounts.map((acc) => (
-                                  <option key={acc.id} value={acc.id}>{acc.accountName}</option>
-                                ))}
-                              </select>
+                                <SelectTrigger className="h-10 text-sm">
+                                  <SelectValue placeholder="-- Choose Bank Account --" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {accounts.map((acc) => (
+                                    <SelectItem key={acc.id} value={acc.id}>{acc.accountName}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           )}
                         </div>
@@ -1383,79 +1423,71 @@ function EmiManagementContent() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddModal(false)}
-                  disabled={submittingAdd}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={submittingAdd}
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-                >
-                  {submittingAdd ? 'Creating...' : 'Create EMI Schedule'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddModal(false)}
+                disabled={submittingAdd}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submittingAdd}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+              >
+                {submittingAdd ? 'Creating...' : 'Create EMI Schedule'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Pay EMI Popup Modal */}
-      {showPayModal && selectedEmiForPay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Play className="h-5 w-5 text-amber-500 fill-amber-500" />
-                  Confirm &amp; Pay EMI Installment
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Confirm installment payment, adjust amount or discounts, and choose the payment method.
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={closePayModal}
-                disabled={Boolean(payingEmiId)}
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+      <Dialog
+        open={Boolean(showPayModal && selectedEmiForPay)}
+        onOpenChange={(open) => {
+          if (!open && !payingEmiId) closePayModal();
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5 text-amber-500 fill-amber-500" />
+              Confirm &amp; Pay EMI Installment
+            </DialogTitle>
+            <DialogDescription>
+              Confirm installment payment, adjust amount or discounts, and choose the payment method.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleConfirmPay} className="space-y-4">
-              {/* Summary Card */}
-              <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground">{selectedEmiForPay.name}</h4>
-                    <p className="text-xs text-muted-foreground">{selectedEmiForPay.lender}</p>
-                    {selectedOccurrenceForPay && (
-                      <Badge variant="secondary" className="text-[10px] mt-1">
-                        Installment #{selectedOccurrenceForPay.installmentNumber} ({selectedOccurrenceForPay.occurrenceKey})
-                      </Badge>
+          <form onSubmit={handleConfirmPay} className="space-y-4">
+            {/* Summary Card */}
+            <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-sm text-foreground">{selectedEmiForPay?.name}</h4>
+                  <p className="text-xs text-muted-foreground">{selectedEmiForPay?.lender}</p>
+                  {selectedOccurrenceForPay && (
+                    <Badge variant="secondary" className="text-[10px] mt-1">
+                      Installment #{selectedOccurrenceForPay.installmentNumber} ({selectedOccurrenceForPay.occurrenceKey})
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                    Scheduled EMI
+                  </span>
+                  <span className="text-base font-bold font-mono text-foreground">
+                    {formatCurrency(
+                      selectedOccurrenceForPay ? selectedOccurrenceForPay.expectedAmount : (selectedEmiForPay?.monthlyAmount || 0),
+                      user?.currency || 'INR'
                     )}
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-                      Scheduled EMI
-                    </span>
-                    <span className="text-base font-bold font-mono text-foreground">
-                      {formatCurrency(
-                        selectedOccurrenceForPay ? selectedOccurrenceForPay.expectedAmount : selectedEmiForPay.monthlyAmount,
-                        user?.currency || 'INR'
-                      )}
-                    </span>
-                  </div>
+                  </span>
                 </div>
               </div>
+            </div>
 
               {/* Dynamic Payment Method Selector */}
               <div className="space-y-3 pt-1 border-t border-border/60">
@@ -1463,11 +1495,10 @@ function EmiManagementContent() {
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Payment Method for This Installment
                   </label>
-                  <select
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  <Select
                     value={payPaymentMethod}
-                    onChange={(e) => {
-                      const pm = e.target.value as PaymentMethod;
+                    onValueChange={(val) => {
+                      const pm = val as PaymentMethod;
                       setPayPaymentMethod(pm);
                       if (pm === PaymentMethod.CREDIT_CARD && !payCreditCardId && cards.length > 0) {
                         setPayCreditCardId(cards[0].id);
@@ -1481,10 +1512,15 @@ function EmiManagementContent() {
                       }
                     }}
                   >
-                    <option value={PaymentMethod.UPI}>UPI / Bank Account</option>
-                    <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                    <option value={PaymentMethod.CASH}>Cash in Hand</option>
-                  </select>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Payment Method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={PaymentMethod.UPI}>UPI / Bank Account</SelectItem>
+                      <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                      <SelectItem value={PaymentMethod.CASH}>Cash in Hand</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {payPaymentMethod === PaymentMethod.CREDIT_CARD && (
@@ -1492,19 +1528,21 @@ function EmiManagementContent() {
                     <label className="text-xs font-semibold text-foreground block">
                       Select Credit Card *
                     </label>
-                    <select
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={payCreditCardId}
-                      onChange={(e) => setPayCreditCardId(e.target.value)}
-                      required
+                    <Select
+                      value={payCreditCardId || undefined}
+                      onValueChange={setPayCreditCardId}
                     >
-                      <option value="">-- Choose Credit Card --</option>
-                      {cards.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.cardNickname}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="-- Choose Credit Card --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cards.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.cardNickname}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <p className="text-[10px] text-muted-foreground">
                       Charges this credit card and increases outstanding liability. Does not debit your bank account.
                     </p>
@@ -1525,19 +1563,21 @@ function EmiManagementContent() {
                     <label className="text-xs font-semibold text-foreground block">
                       Select Bank Account *
                     </label>
-                    <select
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={payAccountId}
-                      onChange={(e) => setPayAccountId(e.target.value)}
-                      required
+                    <Select
+                      value={payAccountId || undefined}
+                      onValueChange={setPayAccountId}
                     >
-                      <option value="">-- Choose Bank Account --</option>
-                      {accounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.accountName}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="-- Choose Bank Account --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.accountName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <p className="text-[10px] text-muted-foreground">
                       Payment will be debited directly from this bank account.
                     </p>
@@ -1633,7 +1673,7 @@ function EmiManagementContent() {
                 const { discountAmount, finalAmount } = getPayCalculation();
                 const scheduled = selectedOccurrenceForPay
                   ? selectedOccurrenceForPay.expectedAmount
-                  : selectedEmiForPay.monthlyAmount;
+                  : (selectedEmiForPay?.monthlyAmount || 0);
                 return (
                   <div className="p-3.5 rounded-xl border border-border bg-muted/40 space-y-2 text-xs">
                     <div className="flex items-center justify-between">
@@ -1658,7 +1698,7 @@ function EmiManagementContent() {
                 );
               })()}
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <DialogFooter className="pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -1674,122 +1714,121 @@ function EmiManagementContent() {
                 >
                   {payingEmiId ? 'Confirming...' : 'Confirm Payment'}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
 
       {/* View Schedule Modal */}
-      {viewScheduleEmi && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-2xl rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <ListOrdered className="h-5 w-5 text-amber-500" />
-                  EMI Schedule: {viewScheduleEmi.name}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Full monthly installment schedule through final scheduled date.
-                </p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setViewScheduleEmi(null)}>
-                Close
-              </Button>
+      <Dialog
+        open={Boolean(viewScheduleEmi)}
+        onOpenChange={(open) => {
+          if (!open) setViewScheduleEmi(null);
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListOrdered className="h-5 w-5 text-amber-500" />
+              EMI Schedule: {viewScheduleEmi?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Full monthly installment schedule through final scheduled date.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingSchedule ? (
+            <div className="space-y-2 py-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
             </div>
-
-            {loadingSchedule ? (
-              <div className="space-y-2 py-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : scheduleOccurrences.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No schedule records found.</p>
-            ) : (
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-                {scheduleOccurrences.map((occ) => {
-                  const isPaidNormal = occ.status === EmiOccurrenceStatus.PAID;
-                  const isPaidHistorical = occ.status === EmiOccurrenceStatus.PAID_HISTORICAL;
-                  const isPaid = isPaidNormal || isPaidHistorical;
-                  return (
-                    <div
-                      key={occ.id}
-                      className={`flex items-center justify-between p-3 rounded-xl border text-xs transition-all ${
-                        isPaidHistorical
-                          ? 'border-purple-500/30 bg-purple-500/5'
-                          : isPaidNormal
-                          ? 'border-emerald-500/30 bg-emerald-500/5'
-                          : 'border-border/80 bg-muted/20'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-muted-foreground w-6">#{occ.installmentNumber}</span>
-                        <div>
-                          <p className="font-bold text-foreground">{occ.occurrenceKey}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            Due: {new Date(occ.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="font-mono font-bold text-foreground">
-                            {formatCurrency(isPaid ? occ.actualAmountPaid || occ.expectedAmount : occ.expectedAmount, user?.currency || 'INR')}
-                          </p>
-                          {occ.discountAmount && occ.discountAmount > 0 ? (
-                            <p className="text-[10px] text-emerald-500">Saved ₹{occ.discountAmount}</p>
-                          ) : null}
-                        </div>
-
-                        <div>
-                          {isPaidNormal ? (
-                            <Badge variant="default" className="bg-emerald-600 text-white text-[10px] flex items-center gap-1">
-                              <CheckCircle className="h-3 w-3" /> Paid
-                            </Badge>
-                          ) : isPaidHistorical ? (
-                            <Badge variant="outline" className="text-purple-600 border-purple-500/40 bg-purple-500/10 text-[10px] flex items-center gap-1">
-                              <History className="h-3 w-3" /> Historical
-                            </Badge>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={() => openPayModal(viewScheduleEmi, occ)}
-                              className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] h-7 px-2.5 font-semibold"
-                            >
-                              Pay
-                            </Button>
-                          )}
-                        </div>
+          ) : scheduleOccurrences.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No schedule records found.</p>
+          ) : (
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {scheduleOccurrences.map((occ) => {
+                const isPaidNormal = occ.status === EmiOccurrenceStatus.PAID;
+                const isPaidHistorical = occ.status === EmiOccurrenceStatus.PAID_HISTORICAL;
+                const isPaid = isPaidNormal || isPaidHistorical;
+                return (
+                  <div
+                    key={occ.id}
+                    className={`flex items-center justify-between p-3 rounded-xl border text-xs transition-all ${
+                      isPaidHistorical
+                        ? 'border-purple-500/30 bg-purple-500/5'
+                        : isPaidNormal
+                        ? 'border-emerald-500/30 bg-emerald-500/5'
+                        : 'border-border/80 bg-muted/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono font-bold text-muted-foreground w-6">#{occ.installmentNumber}</span>
+                      <div>
+                        <p className="font-bold text-foreground">{occ.occurrenceKey}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Due: {new Date(occ.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-foreground">
+                          {formatCurrency(isPaid ? occ.actualAmountPaid || occ.expectedAmount : occ.expectedAmount, user?.currency || 'INR')}
+                        </p>
+                        {occ.discountAmount && occ.discountAmount > 0 ? (
+                          <p className="text-[10px] text-emerald-500">Saved ₹{occ.discountAmount}</p>
+                        ) : null}
+                      </div>
+
+                      <div>
+                        {isPaidNormal ? (
+                          <Badge variant="default" className="bg-emerald-600 text-white text-[10px] flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" /> Paid
+                          </Badge>
+                        ) : isPaidHistorical ? (
+                          <Badge variant="outline" className="text-purple-600 border-purple-500/40 bg-purple-500/10 text-[10px] flex items-center gap-1">
+                            <History className="h-3 w-3" /> Historical
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => viewScheduleEmi && openPayModal(viewScheduleEmi, occ)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] h-7 px-2.5 font-semibold"
+                          >
+                            Pay
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit EMI Modal */}
-      {editingEmi && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Edit className="h-5 w-5 text-amber-500" />
-                  Edit EMI Settings
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Update future monthly installment amounts, end date, or payment defaults.
-                </p>
-              </div>
-            </div>
+      <Dialog
+        open={Boolean(editingEmi)}
+        onOpenChange={(open) => {
+          if (!open && !submittingEdit) setEditingEmi(null);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5 text-amber-500" />
+              Edit EMI Settings
+            </DialogTitle>
+            <DialogDescription>
+              Update future monthly installment amounts, end date, or payment defaults.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleSaveEditEmi} className="space-y-4">
+          <form onSubmit={handleSaveEditEmi} className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-foreground block mb-1">
                   Monthly Installment Amount (₹) *
@@ -1835,15 +1874,19 @@ function EmiManagementContent() {
                 <label className="text-xs font-semibold text-foreground block mb-1">
                   Default Payment Method
                 </label>
-                <select
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <Select
                   value={editPaymentMethod}
-                  onChange={(e) => setEditPaymentMethod(e.target.value as PaymentMethod)}
+                  onValueChange={(val) => setEditPaymentMethod(val as PaymentMethod)}
                 >
-                  <option value={PaymentMethod.UPI}>UPI / Bank Account</option>
-                  <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                  <option value={PaymentMethod.CASH}>Cash in Hand</option>
-                </select>
+                  <SelectTrigger className="h-10 text-sm">
+                    <SelectValue placeholder="Payment Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PaymentMethod.UPI}>UPI / Bank Account</SelectItem>
+                    <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                    <SelectItem value={PaymentMethod.CASH}>Cash in Hand</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {editPaymentMethod === PaymentMethod.CREDIT_CARD ? (
@@ -1851,36 +1894,42 @@ function EmiManagementContent() {
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Select Credit Card
                   </label>
-                  <select
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={editCreditCardId}
-                    onChange={(e) => setEditCreditCardId(e.target.value)}
+                  <Select
+                    value={editCreditCardId || undefined}
+                    onValueChange={setEditCreditCardId}
                   >
-                    <option value="">-- Choose Credit Card --</option>
-                    {cards.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.cardNickname}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="-- Choose Credit Card --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cards.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.cardNickname}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : editPaymentMethod !== PaymentMethod.CASH ? (
                 <div>
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Select Bank Account
                   </label>
-                  <select
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={editAccountId}
-                    onChange={(e) => setEditAccountId(e.target.value)}
+                  <Select
+                    value={editAccountId || undefined}
+                    onValueChange={setEditAccountId}
                   >
-                    <option value="">-- Choose Bank Account --</option>
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.accountName}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="-- Choose Bank Account --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.accountName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : null}
 
@@ -1894,7 +1943,7 @@ function EmiManagementContent() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <DialogFooter className="pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -1910,11 +1959,10 @@ function EmiManagementContent() {
                 >
                   {submittingEdit ? 'Saving...' : 'Save Changes'}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }

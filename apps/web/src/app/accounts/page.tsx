@@ -11,6 +11,30 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Wallet,
   Building2,
   Plus,
@@ -922,380 +946,370 @@ export default function AccountsPage() {
       )}
 
       {/* Add Account Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Add Bank Account</CardTitle>
-              <CardDescription>
-                Record a new financial account. M12 Expense Tracker works purely with manual entries; no bank passwords required.
-              </CardDescription>
-            </CardHeader>
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Bank Account</DialogTitle>
+            <DialogDescription>
+              Record a new financial account. M12 Expense Tracker works purely with manual entries; no bank passwords required.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleCreateAccount}>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Account Nickname *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Salary Account"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={accountName}
-                      onChange={(e) => setAccountName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Bank Name *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. HDFC Bank, Chase, Cash"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Account Type
-                    </label>
-                    <select
-                      value={accountType}
-                      onChange={(e) => setAccountType(e.target.value as AccountType)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {Object.values(AccountType).map((t) => (
-                        <option key={t} value={t}>
-                          {t.charAt(0).toUpperCase() + t.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Opening Balance *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={openingBalance}
-                      onChange={(e) => setOpeningBalance(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Masked Identifier (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. •••• 9876"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={accountNumberMasked}
-                      onChange={(e) => setAccountNumberMasked(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Theme Color
-                    </label>
-                    <div className="flex items-center gap-2 h-10">
-                      <input
-                        type="color"
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                        className="h-10 w-14 rounded cursor-pointer border border-input bg-transparent"
-                      />
-                      <span className="text-xs font-mono text-muted-foreground">{color}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Notes (Optional)
-                  </label>
-                  <textarea
-                    placeholder="Primary salary credit account..."
-                    className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                  />
-                </div>
-
-                <div className="pt-2 border-t border-border">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isChitFundAccount}
-                      onChange={(e) => setIsChitFundAccount(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-ring"
-                    />
-                    <div>
-                      <span className="text-sm font-medium text-foreground block">
-                        Use this account for Chit Fund
-                      </span>
-                      <span className="text-xs text-muted-foreground block">
-                        Designates this account for chit fund collections and payouts. Only one bank account can be designated at a time.
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Bank Account
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* Edit Account Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Edit Bank Account</CardTitle>
-              <CardDescription>
-                Update bank account attributes. If opening balance is modified, the current derived balance will be recalculated.
-              </CardDescription>
-            </CardHeader>
-
-            <form onSubmit={handleUpdateAccount}>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Account Nickname *
-                    </label>
-                    <input
-                      type="text"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={editAccountName}
-                      onChange={(e) => setEditAccountName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Bank Name *
-                    </label>
-                    <input
-                      type="text"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={editBankName}
-                      onChange={(e) => setEditBankName(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Account Type
-                    </label>
-                    <select
-                      value={editAccountType}
-                      onChange={(e) => setEditAccountType(e.target.value as AccountType)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {Object.values(AccountType).map((t) => (
-                        <option key={t} value={t}>
-                          {t.charAt(0).toUpperCase() + t.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Opening Balance *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={editOpeningBalance}
-                      onChange={(e) => setEditOpeningBalance(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Masked Identifier (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. •••• 9876"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={editAccountNumberMasked}
-                      onChange={(e) => setEditAccountNumberMasked(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Theme Color
-                    </label>
-                    <div className="flex items-center gap-2 h-10">
-                      <input
-                        type="color"
-                        value={editColor}
-                        onChange={(e) => setEditColor(e.target.value)}
-                        className="h-10 w-14 rounded cursor-pointer border border-input bg-transparent"
-                      />
-                      <span className="text-xs font-mono text-muted-foreground">{editColor}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Notes (Optional)
-                  </label>
-                  <textarea
-                    className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                  />
-                </div>
-
-                <div className="pt-2 border-t border-border">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editIsChitFundAccount}
-                      onChange={(e) => setEditIsChitFundAccount(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-ring"
-                    />
-                    <div>
-                      <span className="text-sm font-medium text-foreground block">
-                        Use this account for Chit Fund
-                      </span>
-                      <span className="text-xs text-muted-foreground block">
-                        Designates this account for chit fund collections and payouts. Only one bank account can be designated at a time.
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Changes
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* Reassign Chit Fund Account Confirmation Modal */}
-      {reassignPrompt?.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-amber-500/40 animate-in zoom-in-95">
-            <CardHeader>
-              <div className="flex items-center gap-2 text-amber-500">
-                <AlertTriangle className="h-5 w-5 shrink-0" />
-                <CardTitle className="text-lg">Reassign Chit Fund Account?</CardTitle>
+          <form onSubmit={handleCreateAccount} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Account Nickname *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Salary Account"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  required
+                />
               </div>
-              <CardDescription className="text-xs text-muted-foreground pt-1">
-                {reassignPrompt.message}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-foreground/80">
-              <p>
-                Only one bank account can be designated for Chit Fund operations. If you proceed:
-              </p>
-              <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                <li>
-                  <strong className="text-foreground">{reassignPrompt.existingAccountName}</strong> will no longer be designated as the Chit Fund account.
-                </li>
-                <li>Future chit fund collections and payouts will route through this newly designated account.</li>
-                <li>All existing ledger records and balance histories remain secure.</li>
-              </ul>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setReassignPrompt(null)}
-              >
-                Keep Existing Account
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-                onClick={handleConfirmReassign}
-                isLoading={submitting}
-              >
-                Yes, Reassign Chit Fund
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
 
-      {/* Personal Cash in Hand Adjustment Modal */}
-      {showCashModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <CardHeader className="pb-3 border-b border-border">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <Banknote className="h-4 w-4" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Bank Name *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. HDFC Bank, Chase, Cash"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Account Type
+                </label>
+                <Select
+                  value={accountType}
+                  onValueChange={(val) => setAccountType(val as AccountType)}
+                >
+                  <SelectTrigger className="h-10 text-sm">
+                    <SelectValue placeholder="Account Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(AccountType).map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Opening Balance *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={openingBalance}
+                  onChange={(e) => setOpeningBalance(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Masked Identifier (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. •••• 9876"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={accountNumberMasked}
+                  onChange={(e) => setAccountNumberMasked(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Theme Color
+                </label>
+                <div className="flex items-center gap-2 h-10">
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="h-10 w-14 rounded cursor-pointer border border-input bg-transparent"
+                  />
+                  <span className="text-xs font-mono text-muted-foreground">{color}</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Notes (Optional)
+              </label>
+              <textarea
+                placeholder="Primary salary credit account..."
+                className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="pt-2 border-t border-border">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isChitFundAccount}
+                  onChange={(e) => setIsChitFundAccount(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                />
                 <div>
-                  <CardTitle className="text-base font-bold">Adjust Cash in Hand</CardTitle>
-                  <CardDescription className="text-xs">
-                    Deposit, withdraw, or set opening baseline. Independent from Chit Fund money.
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-
-            <form onSubmit={handleAdjustCash} className="flex-1 overflow-y-auto">
-              <CardContent className="space-y-4 pt-4">
-                {/* Current Cash Balance Callout */}
-                <div className="p-3 rounded-lg bg-muted/40 border border-border flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground font-medium">Current Available Cash:</span>
-                  <span className="font-bold text-foreground font-mono text-sm">
-                    {formatCurrency(totalCashSummary?.personalCashInHand ?? totalCashSummary?.cashInHand ?? 0, user?.currency || 'INR')}
+                  <span className="text-sm font-medium text-foreground block">
+                    Use this account for Chit Fund
+                  </span>
+                  <span className="text-xs text-muted-foreground block">
+                    Designates this account for chit fund collections and payouts. Only one bank account can be designated at a time.
                   </span>
                 </div>
+              </label>
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Bank Account
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Account Modal */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Bank Account</DialogTitle>
+            <DialogDescription>
+              Update bank account attributes. If opening balance is modified, the current derived balance will be recalculated.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateAccount} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Account Nickname *
+                </label>
+                <input
+                  type="text"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={editAccountName}
+                  onChange={(e) => setEditAccountName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Bank Name *
+                </label>
+                <input
+                  type="text"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={editBankName}
+                  onChange={(e) => setEditBankName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Account Type
+                </label>
+                <Select
+                  value={editAccountType}
+                  onValueChange={(val) => setEditAccountType(val as AccountType)}
+                >
+                  <SelectTrigger className="h-10 text-sm">
+                    <SelectValue placeholder="Account Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(AccountType).map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Opening Balance *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={editOpeningBalance}
+                  onChange={(e) => setEditOpeningBalance(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Masked Identifier (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. •••• 9876"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={editAccountNumberMasked}
+                  onChange={(e) => setEditAccountNumberMasked(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Theme Color
+                </label>
+                <div className="flex items-center gap-2 h-10">
+                  <input
+                    type="color"
+                    value={editColor}
+                    onChange={(e) => setEditColor(e.target.value)}
+                    className="h-10 w-14 rounded cursor-pointer border border-input bg-transparent"
+                  />
+                  <span className="text-xs font-mono text-muted-foreground">{editColor}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Notes (Optional)
+              </label>
+              <textarea
+                className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="pt-2 border-t border-border">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editIsChitFundAccount}
+                  onChange={(e) => setEditIsChitFundAccount(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                />
+                <div>
+                  <span className="text-sm font-medium text-foreground block">
+                    Use this account for Chit Fund
+                  </span>
+                  <span className="text-xs text-muted-foreground block">
+                    Designates this account for chit fund collections and payouts. Only one bank account can be designated at a time.
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reassign Chit Fund Account Confirmation Modal */}
+      <AlertDialog open={Boolean(reassignPrompt?.isOpen)} onOpenChange={(open) => { if (!open) setReassignPrompt(null); }}>
+        <AlertDialogContent className="max-w-md border-amber-500/40">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-amber-500">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <AlertDialogTitle className="text-lg">Reassign Chit Fund Account?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-xs text-muted-foreground pt-1">
+              {reassignPrompt?.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 text-xs text-foreground/80 py-2">
+            <p>
+              Only one bank account can be designated for Chit Fund operations. If you proceed:
+            </p>
+            <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+              <li>
+                <strong className="text-foreground">{reassignPrompt?.existingAccountName}</strong> will no longer be designated as the Chit Fund account.
+              </li>
+              <li>Future chit fund collections and payouts will route through this newly designated account.</li>
+              <li>All existing ledger records and balance histories remain secure.</li>
+            </ul>
+          </div>
+          <AlertDialogFooter className="pt-4 border-t border-border">
+            <AlertDialogCancel onClick={() => setReassignPrompt(null)}>
+              Keep Existing Account
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={handleConfirmReassign}
+              isLoading={submitting}
+            >
+              Yes, Reassign Chit Fund
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Personal Cash in Hand Adjustment Modal */}
+      <Dialog open={showCashModal} onOpenChange={setShowCashModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Banknote className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold">Adjust Cash in Hand</DialogTitle>
+                <DialogDescription className="text-xs">
+                  Deposit, withdraw, or set opening baseline. Independent from Chit Fund money.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleAdjustCash} className="space-y-4 pt-4">
+            <div className="p-3 rounded-lg bg-muted/40 border border-border flex items-center justify-between text-xs">
+              <span className="text-muted-foreground font-medium">Current Available Cash:</span>
+              <span className="font-bold text-foreground font-mono text-sm">
+                {formatCurrency(totalCashSummary?.personalCashInHand ?? totalCashSummary?.cashInHand ?? 0, user?.currency || 'INR')}
+              </span>
+            </div>
 
                 {/* Adjustment Type Selector */}
                 <div className="space-y-1.5">
@@ -1393,18 +1407,21 @@ export default function AccountsPage() {
                         <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                           Select Debited Bank Account *
                         </label>
-                        <select
+                        <Select
                           value={cashAddBankId}
-                          onChange={(e) => setCashAddBankId(e.target.value)}
-                          required
-                          className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          onValueChange={setCashAddBankId}
                         >
-                          {accounts.map((a) => (
-                            <option key={a.id} value={a.id}>
-                              {a.accountName} (Balance: ₹{a.currentBalance.toLocaleString()})
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="Select Bank Account *" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {accounts.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.accountName} (Balance: ₹{a.currentBalance.toLocaleString()})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <p className="text-[10px] text-muted-foreground">
                           Debits this bank account and credits Cash in Hand. Recorded as an internal transfer with ₹0 impact on income, expense, or total tracked assets.
                         </p>
@@ -1528,9 +1545,8 @@ export default function AccountsPage() {
                     </div>
                   </div>
                 )}
-              </CardContent>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
+              <DialogFooter className="pt-4 border-t border-border">
                 <Button type="button" variant="outline" onClick={() => setShowCashModal(false)}>
                   Cancel
                 </Button>
@@ -1546,11 +1562,10 @@ export default function AccountsPage() {
                 >
                   Confirm Adjustment
                 </Button>
-              </CardFooter>
+              </DialogFooter>
             </form>
-          </Card>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }

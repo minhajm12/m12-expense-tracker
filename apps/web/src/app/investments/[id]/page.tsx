@@ -44,6 +44,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function InvestmentDetailPage() {
   const params = useParams();
@@ -763,494 +781,487 @@ export default function InvestmentDetailPage() {
       )}
 
       {/* ================= MODAL: EDIT INVESTMENT ================= */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-2xl border-border bg-card">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Edit3 className="h-4 w-4 text-purple-400" />
-                  <span>Edit Investment Details</span>
-                </CardTitle>
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <CardDescription className="text-xs">
-                Modifying monthly contribution updates future upcoming obligations only. Previous payment records remain intact.
-              </CardDescription>
-            </CardHeader>
+      <Dialog
+        open={showEditModal}
+        onOpenChange={(open) => {
+          if (!open && !submittingEdit) setShowEditModal(false);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit3 className="h-4 w-4 text-purple-400" />
+              <span>Edit Investment Details</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Modifying monthly contribution updates future upcoming obligations only. Previous payment records remain intact.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleEditSubmit} className="p-4 space-y-3.5 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Investment Name
-                </label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </div>
+          <form onSubmit={handleEditSubmit} className="space-y-3.5 text-xs pt-2">
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Investment Name
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
 
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Monthly Contribution Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editMonthlyContribution}
-                  onChange={(e) => setEditMonthlyContribution(e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-bold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Monthly Contribution Amount (₹)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={editMonthlyContribution}
+                onChange={(e) => setEditMonthlyContribution(e.target.value)}
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-bold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-muted/20">
-                <div>
-                  <div className="text-xs font-semibold text-foreground">Monthly Payment Reminders</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    Display in Upcoming Monthly Payments
-                  </div>
+            <div className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-muted/20">
+              <div>
+                <div className="text-xs font-semibold text-foreground">Monthly Payment Reminders</div>
+                <div className="text-[10px] text-muted-foreground">
+                  Display in Upcoming Monthly Payments
                 </div>
-                <input
-                  type="checkbox"
-                  checked={editIsMonthlyPaymentEnabled}
-                  onChange={(e) => setEditIsMonthlyPaymentEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-input text-purple-600 focus:ring-purple-500"
-                />
               </div>
+              <input
+                type="checkbox"
+                checked={editIsMonthlyPaymentEnabled}
+                onChange={(e) => setEditIsMonthlyPaymentEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-input text-purple-600 focus:ring-purple-500"
+              />
+            </div>
 
-              {investment?.isExternalChit && (
-                <div className="space-y-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-semibold text-emerald-300">
-                        Midway Historical Paid Months
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        Configure previously settled installment cycles before app tracking
-                      </div>
+            {investment?.isExternalChit && (
+              <div className="space-y-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-emerald-300">
+                      Midway Historical Paid Months
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={editEnableHistoricalRange}
-                      onChange={(e) => setEditEnableHistoricalRange(e.target.checked)}
-                      className="h-4 w-4 rounded border-input text-emerald-600 focus:ring-emerald-500"
-                    />
+                    <div className="text-[10px] text-muted-foreground">
+                      Configure previously settled installment cycles before app tracking
+                    </div>
                   </div>
-
-                  {editEnableHistoricalRange && (
-                    <MonthYearRangePicker
-                      value={editHistoricalRange}
-                      onChange={setEditHistoricalRange}
-                      monthlyAmount={parseFloat(editMonthlyContribution) || 0}
-                      chitStartDate={investment?.startDate}
-                    />
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Notes / Reference Info
-                </label>
-                <textarea
-                  rows={2}
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  className="flex w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </div>
-
-              <CardFooter className="p-0 pt-3 flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowEditModal(false)}
-                  disabled={submittingEdit}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={submittingEdit}
-                  className="gap-2 bg-purple-600 hover:bg-purple-500 text-white"
-                >
-                  {submittingEdit ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                  <span>Save Changes</span>
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* ================= MODAL: RECORD PAYMENT ================= */}
-      {showPayModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-2xl border-border bg-card">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-purple-400" />
-                  <span>Record Payment: {selectedCycleForPay}</span>
-                </CardTitle>
-                <button
-                  type="button"
-                  onClick={() => setShowPayModal(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </CardHeader>
-
-            <form onSubmit={handlePaySubmit} className="p-4 space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                    Cycle Month
-                  </label>
                   <input
-                    type="text"
-                    value={selectedCycleForPay}
-                    disabled
-                    className="flex h-9 w-full rounded-lg border border-input bg-muted px-3 py-1.5 font-mono"
+                    type="checkbox"
+                    checked={editEnableHistoricalRange}
+                    onChange={(e) => setEditEnableHistoricalRange(e.target.checked)}
+                    className="h-4 w-4 rounded border-input text-emerald-600 focus:ring-emerald-500"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                    Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    value={payAmount}
-                    onChange={(e) => setPayAmount(e.target.value)}
-                    required
-                    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-bold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                {editEnableHistoricalRange && (
+                  <MonthYearRangePicker
+                    value={editHistoricalRange}
+                    onChange={setEditHistoricalRange}
+                    monthlyAmount={parseFloat(editMonthlyContribution) || 0}
+                    chitStartDate={investment?.startDate}
                   />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Payment Date
-                </label>
-                <DatePicker
-                  value={payDate}
-                  onChange={setPayDate}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                    Payment Method
-                  </label>
-                  <select
-                    value={payMethod}
-                    onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}
-                    className="flex h-9 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    <option value={PaymentMethod.UPI}>UPI</option>
-                    <option value={PaymentMethod.BANK_TRANSFER}>Bank Transfer</option>
-                    <option value={PaymentMethod.DEBIT_CARD}>Debit Card</option>
-                    <option value={PaymentMethod.CASH}>Cash in Hand</option>
-                  </select>
-                </div>
-
-                {payMethod !== PaymentMethod.CASH && (
-                  <div className="space-y-1">
-                    <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                      Funding Bank Account
-                    </label>
-                    <select
-                      value={payAccountId}
-                      onChange={(e) => setPayAccountId(e.target.value)}
-                      required
-                      className="flex h-9 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.accountName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 )}
               </div>
+            )}
 
-              {payMethod === PaymentMethod.CASH && (
-                <div className="space-y-1.5 rounded-lg border border-border/80 bg-muted/20 p-2.5">
-                  <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                    Cash Source Option *
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPayCashSource('tracked_personal_cash')}
-                      className={`flex flex-col p-2 rounded-lg border text-left transition-all ${
-                        payCashSource === 'tracked_personal_cash'
-                          ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 font-medium'
-                          : 'border-border bg-card text-muted-foreground hover:bg-muted/40'
-                      }`}
-                    >
-                      <span className="font-semibold text-[11px]">Tracked Cash in Hand</span>
-                      <span className="text-[10px] opacity-80">
-                        Available: {personalCashBalance !== null ? formatCurrency(personalCashBalance) : '...'}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPayCashSource('untracked_cash')}
-                      className={`flex flex-col p-2 rounded-lg border text-left transition-all ${
-                        payCashSource === 'untracked_cash'
-                          ? 'border-purple-500 bg-purple-500/15 text-purple-400 font-medium'
-                          : 'border-border bg-card text-muted-foreground hover:bg-muted/40'
-                      }`}
-                    >
-                      <span className="font-semibold text-[11px]">Untracked / External Cash</span>
-                      <span className="text-[10px] opacity-80">Records payment (0 cash debit)</span>
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Cash in Hand payments will never debit any bank account.
-                  </p>
-                </div>
-              )}
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Notes / Reference Info
+              </label>
+              <textarea
+                rows={2}
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                className="flex w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
 
+            <DialogFooter className="pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEditModal(false)}
+                disabled={submittingEdit}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submittingEdit}
+                className="gap-2 bg-purple-600 hover:bg-purple-500 text-white"
+              >
+                {submittingEdit ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                <span>Save Changes</span>
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= MODAL: RECORD PAYMENT ================= */}
+      <Dialog
+        open={showPayModal}
+        onOpenChange={(open) => {
+          if (!open && !submittingPay) setShowPayModal(false);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-purple-400" />
+              <span>Record Payment: {selectedCycleForPay}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handlePaySubmit} className="space-y-3.5 text-xs pt-2">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Notes (Optional)
+                  Cycle Month
                 </label>
                 <input
                   type="text"
-                  placeholder="UPI reference, notes..."
-                  value={payNotes}
-                  onChange={(e) => setPayNotes(e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={selectedCycleForPay}
+                  disabled
+                  className="flex h-9 w-full rounded-lg border border-input bg-muted px-3 py-1.5 font-mono"
                 />
-              </div>
-
-              <CardFooter className="p-0 pt-3 flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPayModal(false)}
-                  disabled={submittingPay}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={submittingPay}
-                  className="gap-2 bg-purple-600 hover:bg-purple-500 text-white"
-                >
-                  {submittingPay ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                  <span>{submittingPay ? 'Recording...' : 'Confirm & Debit Balance'}</span>
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* ================= MODAL: MARK WON ================= */}
-      {showWonModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-2xl border-amber-500/30 bg-card">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-amber-400">
-                  <Trophy className="h-5 w-5 text-amber-400" />
-                  <span>{investment.isWon ? 'Edit Chit Payout Details' : 'Mark Chit as Won'}</span>
-                </CardTitle>
-                <button
-                  type="button"
-                  onClick={() => setShowWonModal(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </CardHeader>
-
-            <form onSubmit={handleWonSubmit} className="p-4 space-y-3.5 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Winning Date
-                </label>
-                <DatePicker
-                  value={wonDate}
-                  onChange={setWonDate}
-                />
-              </div>
-
-              {/* Already Paid Before Tracking (Historical Payout) Toggle */}
-              <div className="flex items-start gap-2.5 p-3 rounded-lg border border-border/70 bg-muted/20">
-                <input
-                  type="checkbox"
-                  id="isHistoricalPayoutDetail"
-                  checked={isHistoricalPayout}
-                  onChange={(e) => setIsHistoricalPayout(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-input text-amber-500 focus:ring-amber-500"
-                />
-                <div className="space-y-0.5">
-                  <label htmlFor="isHistoricalPayoutDetail" className="text-xs font-semibold text-foreground cursor-pointer">
-                    Payout Already Received Before Tracking
-                  </label>
-                  <p className="text-[11px] text-muted-foreground">
-                    Enable if you won and collected this chit in a past month before using this app. Payout will be recorded under Investment Returns without debiting or crediting your current bank balance.
-                  </p>
-                </div>
               </div>
 
               <div className="space-y-1">
                 <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Actual Prize Payout Amount Received (₹)
+                  Amount (₹)
                 </label>
                 <input
                   type="number"
                   step="0.01"
                   min="1"
-                  value={wonPayoutAmount}
-                  onChange={(e) => setWonPayoutAmount(e.target.value)}
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
                   required
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-bold text-amber-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-bold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
+            </div>
 
-              {!isHistoricalPayout && (
-                <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Payment Date
+              </label>
+              <DatePicker
+                value={payDate}
+                onChange={setPayDate}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                  Payment Method
+                </label>
+                <Select
+                  value={payMethod}
+                  onValueChange={(val) => setPayMethod(val as PaymentMethod)}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Payment Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PaymentMethod.UPI}>UPI</SelectItem>
+                    <SelectItem value={PaymentMethod.BANK_TRANSFER}>Bank Transfer</SelectItem>
+                    <SelectItem value={PaymentMethod.DEBIT_CARD}>Debit Card</SelectItem>
+                    <SelectItem value={PaymentMethod.CASH}>Cash in Hand</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {payMethod !== PaymentMethod.CASH && (
+                <div className="space-y-1">
+                  <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                    Funding Bank Account
+                  </label>
+                  <Select
+                    value={payAccountId || undefined}
+                    onValueChange={setPayAccountId}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select Bank Account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.accountName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            {payMethod === PaymentMethod.CASH && (
+              <div className="space-y-1.5 rounded-lg border border-border/80 bg-muted/20 p-2.5">
+                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                  Cash Source Option *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPayCashSource('tracked_personal_cash')}
+                    className={`flex flex-col p-2 rounded-lg border text-left transition-all ${
+                      payCashSource === 'tracked_personal_cash'
+                        ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 font-medium'
+                        : 'border-border bg-card text-muted-foreground hover:bg-muted/40'
+                    }`}
+                  >
+                    <span className="font-semibold text-[11px]">Tracked Cash in Hand</span>
+                    <span className="text-[10px] opacity-80">
+                      Available: {personalCashBalance !== null ? formatCurrency(personalCashBalance) : '...'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPayCashSource('untracked_cash')}
+                    className={`flex flex-col p-2 rounded-lg border text-left transition-all ${
+                      payCashSource === 'untracked_cash'
+                        ? 'border-purple-500 bg-purple-500/15 text-purple-400 font-medium'
+                        : 'border-border bg-card text-muted-foreground hover:bg-muted/40'
+                    }`}
+                  >
+                    <span className="font-semibold text-[11px]">Untracked / External Cash</span>
+                    <span className="text-[10px] opacity-80">Records payment (0 cash debit)</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Cash in Hand payments will never debit any bank account.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Notes (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="UPI reference, notes..."
+                value={payNotes}
+                onChange={(e) => setPayNotes(e.target.value)}
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPayModal(false)}
+                disabled={submittingPay}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submittingPay}
+                className="gap-2 bg-purple-600 hover:bg-purple-500 text-white"
+              >
+                {submittingPay ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                <span>{submittingPay ? 'Recording...' : 'Confirm & Debit Balance'}</span>
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= MODAL: MARK WON ================= */}
+      <Dialog
+        open={showWonModal}
+        onOpenChange={(open) => {
+          if (!open && !submittingWon) setShowWonModal(false);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-400">
+              <Trophy className="h-5 w-5 text-amber-400" />
+              <span>{investment?.isWon ? 'Edit Chit Payout Details' : 'Mark Chit as Won'}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleWonSubmit} className="space-y-3.5 text-xs pt-2">
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Winning Date
+              </label>
+              <DatePicker
+                value={wonDate}
+                onChange={setWonDate}
+              />
+            </div>
+
+            {/* Already Paid Before Tracking (Historical Payout) Toggle */}
+            <div className="flex items-start gap-2.5 p-3 rounded-lg border border-border/70 bg-muted/20">
+              <input
+                type="checkbox"
+                id="isHistoricalPayoutDetail"
+                checked={isHistoricalPayout}
+                onChange={(e) => setIsHistoricalPayout(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input text-amber-500 focus:ring-amber-500"
+              />
+              <div className="space-y-0.5">
+                <label htmlFor="isHistoricalPayoutDetail" className="text-xs font-semibold text-foreground cursor-pointer">
+                  Payout Already Received Before Tracking
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Enable if you won and collected this chit in a past month before using this app. Payout will be recorded under Investment Returns without debiting or crediting your current bank balance.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Actual Prize Payout Amount Received (₹)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="1"
+                value={wonPayoutAmount}
+                onChange={(e) => setWonPayoutAmount(e.target.value)}
+                required
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-bold text-amber-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+
+            {!isHistoricalPayout && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                    Payout Destination
+                  </label>
+                  <Select value={wonDestinationType} onValueChange={(val) => setWonDestinationType(val as any)}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Destination" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bank">Bank Account</SelectItem>
+                      <SelectItem value="cash">Cash in Hand</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {wonDestinationType === 'bank' && (
                   <div className="space-y-1">
                     <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                      Payout Destination
+                      Credited Bank Account
                     </label>
-                    <Select value={wonDestinationType} onValueChange={(val) => setWonDestinationType(val as any)}>
+                    <Select value={wonAccountId} onValueChange={setWonAccountId}>
                       <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Destination" />
+                        <SelectValue placeholder="Select Account" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bank">Bank Account</SelectItem>
-                        <SelectItem value="cash">Cash in Hand</SelectItem>
+                        {accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.accountName}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {wonDestinationType === 'bank' && (
-                    <div className="space-y-1">
-                      <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                        Credited Bank Account
-                      </label>
-                      <Select value={wonAccountId} onValueChange={setWonAccountId}>
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Select Account" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {accounts.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.accountName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Notes / Dividend Details
-                </label>
-                <input
-                  type="text"
-                  placeholder="Auction notes..."
-                  value={wonNotes}
-                  onChange={(e) => setWonNotes(e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
+                )}
               </div>
+            )}
 
-              <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400 space-y-1">
-                <p className="font-semibold">Financial Safety Rules:</p>
-                <p>
-                  {isHistoricalPayout
-                    ? '• Historical payout records the prize under returns without crediting bank or cash.'
-                    : '• Payout is recorded as an inflow transaction, crediting your chosen account.'}
-                </p>
-                <p>• Future monthly contribution obligations continue until the full chit duration ends.</p>
-              </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+                Notes / Dividend Details
+              </label>
+              <input
+                type="text"
+                placeholder="Auction notes..."
+                value={wonNotes}
+                onChange={(e) => setWonNotes(e.target.value)}
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
 
-              <CardFooter className="p-0 pt-3 flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowWonModal(false)}
-                  disabled={submittingWon}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={submittingWon}
-                  className="gap-2 bg-amber-600 hover:bg-amber-500 text-white"
-                >
-                  {submittingWon ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
-                  <span>{submittingWon ? 'Saving...' : 'Confirm & Credit Payout'}</span>
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* ================= MODAL: DELETE CONFIRMATION ================= */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-sm shadow-2xl border-destructive/40 bg-card">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-5 w-5" />
-                <CardTitle className="text-base font-bold">Delete Investment?</CardTitle>
-              </div>
-              <CardDescription className="text-xs">
-                Are you sure you want to delete <strong className="text-foreground">{investment.name}</strong>?
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 text-xs text-muted-foreground space-y-2">
+            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400 space-y-1">
+              <p className="font-semibold">Financial Safety Rules:</p>
               <p>
-                This will delete the investment schedule, occurrences, and cleanly reverse linked financial transactions with safe balance recalculation.
+                {isHistoricalPayout
+                  ? '• Historical payout records the prize under returns without crediting bank or cash.'
+                  : '• Payout is recorded as an inflow transaction, crediting your chosen account.'}
               </p>
-            </CardContent>
-            <CardFooter className="p-4 pt-2 flex items-center justify-end gap-2">
-              <Button size="sm" variant="outline" onClick={() => setShowDeleteModal(false)}>
+              <p>• Future monthly contribution obligations continue until the full chit duration ends.</p>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowWonModal(false)}
+                disabled={submittingWon}
+              >
                 Cancel
               </Button>
-              <Button size="sm" variant="destructive" onClick={handleDeleteInvestment}>
-                Delete Investment
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submittingWon}
+                className="gap-2 bg-amber-600 hover:bg-amber-500 text-white"
+              >
+                {submittingWon ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
+                <span>{submittingWon ? 'Saving...' : 'Confirm & Credit Payout'}</span>
               </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= MODAL: DELETE CONFIRMATION ================= */}
+      <AlertDialog
+        open={showDeleteModal}
+        onOpenChange={(open) => {
+          if (!open) setShowDeleteModal(false);
+        }}
+      >
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              <AlertDialogTitle>Delete Investment?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-xs">
+              Are you sure you want to delete <strong className="text-foreground">{investment?.name}</strong>?
+              <span className="block mt-2">
+                This will delete the investment schedule, occurrences, and cleanly reverse linked financial transactions with safe balance recalculation.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteInvestment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Investment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

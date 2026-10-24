@@ -2,6 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -557,30 +565,24 @@ export function MonthlyIncomeBreakdown() {
       </CardContent>
 
       {/* Income Calculation Settings Modal */}
-      {showSettingsModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
-          onClick={() => setShowSettingsModal(false)}
-        >
-          <div
-            className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Sliders className="h-5 w-5 text-emerald-500" />
-                  Income Calculation Settings
-                </h3>
-                <Badge variant="outline" className="text-xs">
-                  User Preferences
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Choose which income categories should be included in your monthly income calculations and summary reports.
-              </p>
+      <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Sliders className="h-5 w-5 text-emerald-500" />
+                <span>Income Calculation Settings</span>
+              </DialogTitle>
+              <Badge variant="outline" className="text-xs">
+                User Preferences
+              </Badge>
             </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Choose which income categories should be included in your monthly income calculations and summary reports.
+            </DialogDescription>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-1">
             {loadingSettings ? (
               <div className="space-y-2">
                 {[1, 2, 3, 4].map((i) => (
@@ -626,34 +628,34 @@ export function MonthlyIncomeBreakdown() {
                 })}
               </div>
             )}
-
-            <div className="flex items-center justify-between pt-2 border-t border-border/60">
-              <span className="text-xs text-muted-foreground font-mono">
-                {selectedCategories.size} selected
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSettingsModal(false)}
-                  disabled={savingSettings}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveCategories}
-                  disabled={savingSettings}
-                  className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  {savingSettings ? 'Saving...' : 'Save Settings'}
-                </Button>
-              </div>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between pt-3 border-t border-border/60">
+            <span className="text-xs text-muted-foreground font-mono">
+              {selectedCategories.size} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSettingsModal(false)}
+                disabled={savingSettings}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveCategories}
+                disabled={savingSettings}
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {savingSettings ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

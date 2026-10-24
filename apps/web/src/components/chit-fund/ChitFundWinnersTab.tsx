@@ -6,6 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/toast';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   Trophy,
   Users,
   Calendar,
@@ -299,20 +314,23 @@ export function ChitFundWinnersTab({
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground font-medium">Year:</span>
-                <select
+                <Select
                   value={selectedYear}
-                  onChange={(e) => {
-                    const yr = e.target.value;
+                  onValueChange={(yr) => {
                     setSelectedYear(yr);
                     const currentMonth = selectedCyclePill ? selectedCyclePill.slice(5, 7) : '10';
                     setSelectedCyclePill(`${yr}-${currentMonth}`);
                   }}
-                  className="h-8 rounded-lg border border-border bg-background px-3 text-xs font-bold font-mono text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {['2024', '2025', '2026', '2027', '2028'].map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-8 w-[90px] text-xs font-bold font-mono">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['2024', '2025', '2026', '2027', '2028'].map((y) => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -506,15 +524,19 @@ export function ChitFundWinnersTab({
                   </div>
 
                   {/* Status Filter */}
-                  <select
+                  <Select
                     value={statusFilter}
-                    onChange={(e: any) => setStatusFilter(e.target.value)}
-                    className="text-xs px-2.5 py-1.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    onValueChange={(val: any) => setStatusFilter(val)}
                   >
-                    <option value="all">All Payouts</option>
-                    <option value="paid">Payout Completed</option>
-                    <option value="pending">Payout Pending</option>
-                  </select>
+                    <SelectTrigger className="text-xs h-8 w-[140px]">
+                      <SelectValue placeholder="All Payouts" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Payouts</SelectItem>
+                      <SelectItem value="paid">Payout Completed</SelectItem>
+                      <SelectItem value="pending">Payout Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardHeader>
@@ -692,140 +714,140 @@ export function ChitFundWinnersTab({
       {/* ======================================================== */}
       {/* MODAL 1: MANUAL WINNER ASSIGNMENT MODAL                 */}
       {/* ======================================================== */}
-      {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-[#05A100]" />
-                Assign Winner for {formatCyclePillLabel(selectedCyclePill)}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Select an eligible member to mark as the confirmed winner for cycle {selectedCyclePill}. This locks the cycle.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleAssignWinner}>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Select Eligible Member *
-                  </label>
-                  <select
-                    value={assignMemberId}
-                    onChange={(e) => setAssignMemberId(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  >
-                    <option value="">-- Choose Member --</option>
+      <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-[#05A100]" />
+              <span>Assign Winner for {formatCyclePillLabel(selectedCyclePill)}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Select an eligible member to mark as the confirmed winner for cycle {selectedCyclePill}. This locks the cycle.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAssignWinner} className="space-y-4 pt-2">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Select Eligible Member *
+                </label>
+                <Select
+                  value={assignMemberId || undefined}
+                  onValueChange={(val) => setAssignMemberId(val)}
+                >
+                  <SelectTrigger className="h-10 w-full text-sm">
+                    <SelectValue placeholder="-- Choose Member --" />
+                  </SelectTrigger>
+                  <SelectContent>
                     {remainingEligibleMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
+                      <SelectItem key={m.id} value={m.id}>
                         {m.name} ({formatCurrency(m.contributionPerChit || 5000, currency)}/mo)
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/60">
-                  <div className="space-y-0.5 pr-2">
-                    <label htmlFor="already-paid-out-toggle" className="text-xs font-semibold text-foreground cursor-pointer block">
-                      Already Paid Out (Historical)
-                    </label>
-                    <p className="text-[11px] text-muted-foreground">
-                      For historical winners before app tracking. Marks prize payout as Completed (₹1,00,000) without altering current bank or cash balances.
-                    </p>
-                  </div>
-                  <input
-                    id="already-paid-out-toggle"
-                    type="checkbox"
-                    checked={alreadyPaidOut}
-                    onChange={(e) => setAlreadyPaidOut(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer shrink-0"
-                  />
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/60">
+                <div className="space-y-0.5 pr-2">
+                  <label htmlFor="already-paid-out-toggle" className="text-xs font-semibold text-foreground cursor-pointer block">
+                    Already Paid Out (Historical)
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">
+                    For historical winners before app tracking. Marks prize payout as Completed (₹1,00,000) without altering current bank or cash balances.
+                  </p>
                 </div>
+                <input
+                  id="already-paid-out-toggle"
+                  type="checkbox"
+                  checked={alreadyPaidOut}
+                  onChange={(e) => setAlreadyPaidOut(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer shrink-0"
+                />
+              </div>
 
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>
-                    Confirming this winner will permanently exclude them from future prize draws. Duplicate confirmations for this cycle will be locked.
-                  </span>
-                </div>
-              </CardContent>
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  Confirming this winner will permanently exclude them from future prize draws. Duplicate confirmations for this cycle will be locked.
+                </span>
+              </div>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAssignModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={assigning} className="bg-[#05A100] hover:bg-[#048700] text-white font-bold">
-                  Confirm Winner
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowAssignModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={assigning} className="bg-[#05A100] hover:bg-[#048700] text-white font-bold">
+                Confirm Winner
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ======================================================== */}
       {/* MODAL 2: WINNER CORRECTION MODAL (ADMIN OVERRIDE)       */}
       {/* ======================================================== */}
-      {showCorrectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Edit2 className="h-5 w-5 text-amber-400" />
-                Correct Winner for {formatCyclePillLabel(selectedCyclePill)}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Administrative workflow to reassign the winner for cycle {selectedCyclePill}. Requires an audit trail reason.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleCorrectWinner}>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    New Winner Member *
-                  </label>
-                  <select
-                    value={correctMemberId}
-                    onChange={(e) => setCorrectMemberId(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  >
-                    <option value="">-- Choose New Winner --</option>
+      <Dialog open={showCorrectModal} onOpenChange={setShowCorrectModal}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Edit2 className="h-5 w-5 text-amber-400" />
+              <span>Correct Winner for {formatCyclePillLabel(selectedCyclePill)}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Administrative workflow to reassign the winner for cycle {selectedCyclePill}. Requires an audit trail reason.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCorrectWinner} className="space-y-4 pt-2">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  New Winner Member *
+                </label>
+                <Select
+                  value={correctMemberId || undefined}
+                  onValueChange={(val) => setCorrectMemberId(val)}
+                >
+                  <SelectTrigger className="h-10 w-full text-sm">
+                    <SelectValue placeholder="-- Choose New Winner --" />
+                  </SelectTrigger>
+                  <SelectContent>
                     {remainingEligibleMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
+                      <SelectItem key={m.id} value={m.id}>
                         {m.name} ({formatCurrency(m.contributionPerChit || 5000, currency)}/mo)
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Reason for Correction *
-                  </label>
-                  <textarea
-                    placeholder="Explain why the winner is being re-assigned..."
-                    value={correctReason}
-                    onChange={(e) => setCorrectReason(e.target.value)}
-                    className="flex min-h-[70px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  />
-                </div>
-              </CardContent>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Reason for Correction *
+                </label>
+                <textarea
+                  placeholder="Explain why the winner is being re-assigned..."
+                  value={correctReason}
+                  onChange={(e) => setCorrectReason(e.target.value)}
+                  className="flex min-h-[70px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  required
+                />
+              </div>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowCorrectModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={correcting} className="bg-amber-500 hover:bg-amber-600 text-black font-bold">
-                  Save Correction
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowCorrectModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={correcting} className="bg-amber-500 hover:bg-amber-600 text-black font-bold">
+                Save Correction
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

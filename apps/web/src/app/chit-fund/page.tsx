@@ -12,6 +12,21 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   Coins,
   Users,
   ArrowDownLeft,
@@ -1720,17 +1735,16 @@ function ChitFundContent() {
       {/* ========================================================== */}
       {/* MODAL 1: ADD MEMBER */}
       {/* ========================================================== */}
-      {showAddMemberModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Add Chit Fund Member</CardTitle>
-              <CardDescription>
-                Add a participant to the family chit fund pool (standard ₹5,000 monthly contribution).
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleAddMember}>
-              <CardContent className="space-y-4">
+      <Dialog open={showAddMemberModal} onOpenChange={setShowAddMemberModal}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Chit Fund Member</DialogTitle>
+            <DialogDescription>
+              Add a participant to the family chit fund pool (standard ₹5,000 monthly contribution).
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddMember} className="space-y-4 pt-2">
+            <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Member Full Name *
@@ -1827,15 +1841,19 @@ function ChitFundContent() {
                         <label className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">
                           Winning Cycle (Year & Month)
                         </label>
-                        <select
+                        <Select
                           value={winCycleYear}
-                          onChange={(e) => setWinCycleYear(e.target.value)}
-                          className="h-7 rounded border border-amber-500/40 bg-background px-2 text-xs font-mono text-foreground focus:outline-none"
+                          onValueChange={(val) => setWinCycleYear(val)}
                         >
-                          {['2024', '2025', '2026', '2027', '2028'].map((y) => (
-                            <option key={y} value={y}>{y}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-7 w-[90px] border-amber-500/40 text-xs font-mono">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['2024', '2025', '2026', '2027', '2028'].map((y) => (
+                              <SelectItem key={y} value={y}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid grid-cols-6 sm:grid-cols-12 gap-1">
                         {['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].map((mName, idx) => {
@@ -1872,33 +1890,39 @@ function ChitFundContent() {
                     </div>
                   )}
                 </div>
-              </CardContent>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAddMemberModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Member
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowAddMemberModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Member
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ========================================================== */}
       {/* MODAL 2: EDIT MEMBER */}
       {/* ========================================================== */}
-      {showEditMemberModal && editingMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Edit Chit Fund Member</CardTitle>
-              <CardDescription>Update member contribution or contact details</CardDescription>
-            </CardHeader>
-            <form onSubmit={handleUpdateMember}>
-              <CardContent className="space-y-4">
+      <Dialog
+        open={Boolean(showEditMemberModal && editingMember)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowEditMemberModal(false);
+            setEditingMember(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Chit Fund Member</DialogTitle>
+            <DialogDescription>Update member contribution or contact details</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateMember} className="space-y-4 pt-2">
+            <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Member Full Name *
@@ -1931,14 +1955,18 @@ function ChitFundContent() {
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Status
                     </label>
-                    <select
+                    <Select
                       value={memberStatus}
-                      onChange={(e) => setMemberStatus(e.target.value as any)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onValueChange={(val: any) => setMemberStatus(val)}
                     >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
+                      <SelectTrigger className="h-10 w-full text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-1.5">
@@ -2001,15 +2029,19 @@ function ChitFundContent() {
                         <label className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">
                           Winning Cycle (Year & Month)
                         </label>
-                        <select
+                        <Select
                           value={winCycleYear}
-                          onChange={(e) => setWinCycleYear(e.target.value)}
-                          className="h-7 rounded border border-amber-500/40 bg-background px-2 text-xs font-mono text-foreground focus:outline-none"
+                          onValueChange={(val) => setWinCycleYear(val)}
                         >
-                          {['2024', '2025', '2026', '2027', '2028'].map((y) => (
-                            <option key={y} value={y}>{y}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-7 w-[90px] border-amber-500/40 text-xs font-mono">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['2024', '2025', '2026', '2027', '2028'].map((y) => (
+                              <SelectItem key={y} value={y}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid grid-cols-6 sm:grid-cols-12 gap-1">
                         {['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].map((mName, idx) => {
@@ -2046,50 +2078,56 @@ function ChitFundContent() {
                     </div>
                   )}
                 </div>
-              </CardContent>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowEditMemberModal(false);
-                    setEditingMember(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Changes
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowEditMemberModal(false);
+                  setEditingMember(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ========================================================== */}
       {/* MODAL 3: RECORD COLLECTION */}
       {/* ========================================================== */}
-      {showRecordCollectionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95 max-h-[92vh] flex flex-col">
-            <CardHeader className="pb-3 border-b border-border">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <ArrowDownLeft className="h-5 w-5 text-emerald-400" />
-                  Record Member Collection
-                </CardTitle>
-                <Badge variant="outline" className="text-xs bg-indigo-500/10 text-indigo-400 border-indigo-500/30">
-                  {formatCyclePillLabel(collectionPeriod)}
-                </Badge>
-              </div>
-              <CardDescription className="text-xs">
-                Record a monthly member contribution. Chit Cash in Hand is physical cash held for chit fund; UPI deposits into your designated bank account as Chit Fund money.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleRecordCollection} className="flex-1 overflow-y-auto">
-              <CardContent className="space-y-4 pt-4">
+      <Dialog
+        open={showRecordCollectionModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowRecordCollectionModal(false);
+            setCollectionConfirmationStep(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <ArrowDownLeft className="h-5 w-5 text-emerald-400" />
+                <span>Record Member Collection</span>
+              </DialogTitle>
+              <Badge variant="outline" className="text-xs bg-indigo-500/10 text-indigo-400 border-indigo-500/30">
+                {formatCyclePillLabel(collectionPeriod)}
+              </Badge>
+            </div>
+            <DialogDescription className="text-xs">
+              Record a monthly member contribution. Chit Cash in Hand is physical cash held for chit fund; UPI deposits into your designated bank account as Chit Fund money.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRecordCollection} className="space-y-4 pt-2">
+            <div className="space-y-4">
                 {collectionConfirmationStep ? (
                   /* ========================================================== */
                   /* CONFIRMATION POPUP STEP (Section 10 Requirement)           */
@@ -2231,21 +2269,23 @@ function ChitFundContent() {
                           Unpaid for {collectionPeriod}
                         </span>
                       </div>
-                      <select
-                        value={collectionMemberId}
-                        onChange={(e) => handleSelectMemberForCollection(e.target.value)}
-                        className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        required
+                      <Select
+                        value={collectionMemberId || undefined}
+                        onValueChange={(val) => handleSelectMemberForCollection(val)}
                       >
-                        <option value="">-- Select Member with Outstanding Dues --</option>
-                        {outstandingMembersForCollection
-                          .filter((item) => !item.isFullyPaid || item.member.id === collectionMemberId)
-                          .map((item) => (
-                            <option key={item.member.id} value={item.member.id}>
-                              {item.member.name} (Due: {formatCurrency(item.due, fund?.currency || 'INR')})
-                            </option>
-                          ))}
-                      </select>
+                        <SelectTrigger className="h-10 w-full text-sm">
+                          <SelectValue placeholder="-- Select Member with Outstanding Dues --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {outstandingMembersForCollection
+                            .filter((item) => !item.isFullyPaid || item.member.id === collectionMemberId)
+                            .map((item) => (
+                              <SelectItem key={item.member.id} value={item.member.id}>
+                                {item.member.name} (Due: {formatCurrency(item.due, fund?.currency || 'INR')})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                       {outstandingMembersForCollection.filter((item) => !item.isFullyPaid).length === 0 && (
                         <p className="text-[11px] text-emerald-400">
                           ✓ All active members have fully recorded their contributions for {collectionPeriod}.
@@ -2310,19 +2350,21 @@ function ChitFundContent() {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           Receiving Bank Account *
                         </label>
-                        <select
-                          value={collectionBankAccountId}
-                          onChange={(e) => setCollectionBankAccountId(e.target.value)}
-                          className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          required
+                        <Select
+                          value={collectionBankAccountId || undefined}
+                          onValueChange={(val) => setCollectionBankAccountId(val)}
                         >
-                          <option value="">-- Select Bank Account --</option>
-                          {bankAccounts.map((acc) => (
-                            <option key={acc.id} value={acc.id}>
-                              {acc.accountName} {acc.isChitFundAccount ? '(Chit Fund Account)' : ''} (Balance: {formatCurrency(acc.currentBalance, fund?.currency || 'INR')})
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-10 w-full text-sm">
+                            <SelectValue placeholder="-- Select Bank Account --" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bankAccounts.map((acc) => (
+                              <SelectItem key={acc.id} value={acc.id}>
+                                {acc.accountName} {acc.isChitFundAccount ? '(Chit Fund Account)' : ''} (Balance: {formatCurrency(acc.currentBalance, fund?.currency || 'INR')})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     )}
 
@@ -2407,57 +2449,55 @@ function ChitFundContent() {
                     </div>
                   </>
                 )}
-              </CardContent>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4 mt-2">
-                {collectionConfirmationStep ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setCollectionConfirmationStep(false)}
-                      disabled={submitting}
-                    >
-                      Back to Edit
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={submitting}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                    >
-                      {submitting ? 'Recording...' : 'Confirm & Save Collection'}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button type="button" variant="outline" onClick={() => setShowRecordCollectionModal(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
-                      Review &amp; Confirm
-                    </Button>
-                  </>
-                )}
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border mt-2">
+              {collectionConfirmationStep ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCollectionConfirmationStep(false)}
+                    disabled={submitting}
+                  >
+                    Back to Edit
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={submitting}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                  >
+                    {submitting ? 'Recording...' : 'Confirm & Save Collection'}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" onClick={() => setShowRecordCollectionModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                    Review &amp; Confirm
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ========================================================== */}
       {/* MODAL 4: RECORD PAYOUT */}
       {/* ========================================================== */}
-      {showRecordPayoutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Record Chit Fund Payout</CardTitle>
-              <CardDescription>
-                Disburse pool funds to the winning bidder/recipient. Debiting from the bank account settles pool liabilities without counting as a personal expense.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleRecordPayout}>
-              <CardContent className="space-y-4 h-[60vh] overflow-y-auto">
+      <Dialog open={showRecordPayoutModal} onOpenChange={setShowRecordPayoutModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Record Chit Fund Payout</DialogTitle>
+            <DialogDescription>
+              Disburse pool funds to the winning bidder/recipient. Debiting from the bank account settles pool liabilities without counting as a personal expense.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRecordPayout} className="space-y-4 pt-2">
+            <div className="space-y-4">
                 {/* Winner Autofill Banner if cycle has a confirmed winner */}
                 {(() => {
                   const matchedCycle = cycles.find((c) => c.cyclePeriod === payoutPeriod);
@@ -2492,18 +2532,22 @@ function ChitFundContent() {
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Select Recipient Member (Optional helper)
                   </label>
-                  <select
-                    value={payoutMemberId}
-                    onChange={(e) => handleSelectMemberForPayout(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  <Select
+                    value={payoutMemberId || 'manual'}
+                    onValueChange={(val) => handleSelectMemberForPayout(val === 'manual' ? '' : val)}
                   >
-                    <option value="">-- Or type recipient name manually below --</option>
-                    {members.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-10 w-full text-sm">
+                      <SelectValue placeholder="-- Or type recipient name manually below --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">-- Or type recipient name manually below --</SelectItem>
+                      {members.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1.5">
@@ -2524,15 +2568,18 @@ function ChitFundContent() {
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Payout Status *
                   </label>
-                  <select
+                  <Select
                     value={payoutStatus}
-                    onChange={(e: any) => setPayoutStatus(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
+                    onValueChange={(val: any) => setPayoutStatus(val)}
                   >
-                    <option value="completed">Completed (Paid out now — debits bank account)</option>
-                    <option value="pending">Pending (Prize awarded — bank balance unaffected until disbursed)</option>
-                  </select>
+                    <SelectTrigger className="h-10 w-full text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="completed">Completed (Paid out now — debits bank account)</SelectItem>
+                      <SelectItem value="pending">Pending (Prize awarded — bank balance unaffected until disbursed)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -2705,20 +2752,22 @@ function ChitFundContent() {
                       </span>
                     )}
                   </div>
-                  <select
-                    value={payoutBankAccountId}
-                    onChange={(e) => setPayoutBankAccountId(e.target.value)}
+                  <Select
+                    value={payoutBankAccountId || undefined}
+                    onValueChange={(val) => setPayoutBankAccountId(val)}
                     disabled={parseFloat(payoutUpiAmount || '0') === 0}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                    required={parseFloat(payoutUpiAmount || '0') > 0}
                   >
-                    <option value="">-- Select Bank Account --</option>
-                    {bankAccounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.accountName} {acc.isChitFundAccount ? '(Chit Fund Account)' : ''} (Balance: {formatCurrency(acc.currentBalance, fund?.currency || 'INR')})
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-10 w-full text-sm disabled:opacity-50">
+                      <SelectValue placeholder="-- Select Bank Account --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.accountName} {acc.isChitFundAccount ? '(Chit Fund Account)' : ''} (Balance: {formatCurrency(acc.currentBalance, fund?.currency || 'INR')})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -2748,102 +2797,99 @@ function ChitFundContent() {
                     />
                   </div>
                 </div>
-              </CardContent>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowRecordPayoutModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                  Post Payout
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowRecordPayoutModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                Post Payout
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ========================================================== */}
       {/* MODAL 5: RECONCILIATION ADJUSTMENT */}
       {/* ========================================================== */}
-      {showAdjustmentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Record Manual Adjustment</CardTitle>
-              <CardDescription>
-                Correct historical discrepancy between liquid bank reserves and Chit Fund pool ledger.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleRecordAdjustment}>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Adjustment Amount (+ for Credit, - for Debit) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 5000 or -5000"
-                    value={adjustmentAmount}
-                    onChange={(e) => setAdjustmentAmount(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  />
-                  <span className="text-[11px] text-muted-foreground block">
-                    Positive amount increases fund pool liability; negative decreases it.
-                  </span>
-                </div>
+      <Dialog open={showAdjustmentModal} onOpenChange={setShowAdjustmentModal}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Record Manual Adjustment</DialogTitle>
+            <DialogDescription>
+              Correct historical discrepancy between liquid bank reserves and Chit Fund pool ledger.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRecordAdjustment} className="space-y-4 pt-2">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Adjustment Amount (+ for Credit, - for Debit) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 5000 or -5000"
+                  value={adjustmentAmount}
+                  onChange={(e) => setAdjustmentAmount(e.target.value)}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  required
+                />
+                <span className="text-[11px] text-muted-foreground block">
+                  Positive amount increases fund pool liability; negative decreases it.
+                </span>
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Reason for Adjustment *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Cash pool deposited to bank / Bank charge resolution"
-                    value={adjustmentReason}
-                    onChange={(e) => setAdjustmentReason(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Reason for Adjustment *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Cash pool deposited to bank / Bank charge resolution"
+                  value={adjustmentReason}
+                  onChange={(e) => setAdjustmentReason(e.target.value)}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  required
+                />
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Adjustment Date *
-                  </label>
-                  <DatePicker
-                    value={adjustmentDate}
-                    onChange={setAdjustmentDate}
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Adjustment Date *
+                </label>
+                <DatePicker
+                  value={adjustmentDate}
+                  onChange={setAdjustmentDate}
+                />
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Explanatory Audit Notes (Optional)
-                  </label>
-                  <textarea
-                    placeholder="Explain audit reason for this ledger reconciliation entry..."
-                    value={adjustmentNotes}
-                    onChange={(e) => setAdjustmentNotes(e.target.value)}
-                    className="flex min-h-[70px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
-              </CardContent>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Explanatory Audit Notes (Optional)
+                </label>
+                <textarea
+                  placeholder="Explain audit reason for this ledger reconciliation entry..."
+                  value={adjustmentNotes}
+                  onChange={(e) => setAdjustmentNotes(e.target.value)}
+                  className="flex min-h-[70px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAdjustmentModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Adjustment
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowAdjustmentModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Adjustment
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

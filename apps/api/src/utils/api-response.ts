@@ -17,6 +17,20 @@ export const sendSuccess = <T>(
       ...meta,
     },
   };
+  // If meta contains pagination info, expose top-level pagination object for client convenience
+  if (meta && typeof meta === 'object' && ('page' in meta || 'total' in meta || 'hasMore' in meta)) {
+    payload.pagination = {
+      page: (meta as any).page,
+      limit: (meta as any).limit,
+      total: (meta as any).total,
+      totalPages: (meta as any).totalPages,
+      hasMore: (meta as any).hasMore,
+    };
+  }
+  // If data is an array (e.g. transactions list), also expose top-level transactions alias
+  if (Array.isArray(data)) {
+    payload.transactions = data;
+  }
   // If data object contains a token (e.g. login, verify-otp, register), also expose top-level token
   if (data && typeof data === 'object' && 'token' in (data as Record<string, unknown>)) {
     payload.token = (data as Record<string, unknown>).token;

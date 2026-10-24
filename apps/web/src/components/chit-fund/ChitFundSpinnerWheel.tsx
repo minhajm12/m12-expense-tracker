@@ -2,6 +2,14 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/toast';
@@ -733,87 +741,88 @@ export function ChitFundSpinnerWheel({
       </div>
 
       {/* Winner Confirmation Modal */}
-      {showConfirmModal && previewWinner && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md border-border bg-card shadow-2xl">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2 text-emerald-400">
-                <Trophy className="h-5 w-5" />
-                <CardTitle className="text-lg font-bold text-foreground">
-                  Confirm Chit Winner
-                </CardTitle>
-              </div>
-              <CardDescription className="text-xs text-muted-foreground">
-                Locking this winner for cycle {currentCyclePeriod}.
-              </CardDescription>
-            </CardHeader>
+      <Dialog
+        open={Boolean(showConfirmModal && previewWinner)}
+        onOpenChange={(open) => {
+          if (!open && !confirming) setShowConfirmModal(false);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-center gap-2 text-emerald-400">
+              <Trophy className="h-5 w-5" />
+              <span className="text-foreground">Confirm Chit Winner</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Locking this winner for cycle {currentCyclePeriod}.
+            </DialogDescription>
+          </DialogHeader>
 
-            <CardContent className="space-y-4">
-              <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Cycle Month:</span>
-                  <span className="font-bold text-foreground font-mono">{currentCyclePeriod}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Winner Name:</span>
-                  <span className="font-bold text-emerald-400 text-sm">{previewWinner.name}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Scheduled Prize Date:</span>
-                  <span className="font-semibold text-foreground">
-                    {cycleInfo?.formattedPrizeDate || '15th of the month'}
-                  </span>
-                </div>
+          <div className="space-y-4 pt-1">
+            <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Cycle Month:</span>
+                <span className="font-bold text-foreground font-mono">{currentCyclePeriod}</span>
               </div>
-
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">
-                  Confirmation Notes (Optional)
-                </label>
-                <textarea
-                  value={confirmationNotes}
-                  onChange={(e) => setConfirmationNotes(e.target.value)}
-                  placeholder="e.g. Drawn via live family animated lot wheel on 15th"
-                  className="w-full text-xs p-2.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary h-20 resize-none"
-                />
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Winner Name:</span>
+                <span className="font-bold text-emerald-400 text-sm">{previewWinner?.name}</span>
               </div>
-
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-400">
-                <strong>Important:</strong> Exactly one winner can be confirmed per monthly cycle. Once confirmed, this member is excluded from future lot spinner selections.
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Scheduled Prize Date:</span>
+                <span className="font-semibold text-foreground">
+                  {cycleInfo?.formattedPrizeDate || '15th of the month'}
+                </span>
               </div>
-            </CardContent>
+            </div>
 
-            <CardFooter className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowConfirmModal(false)}
-                disabled={confirming}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleConfirmWinner}
-                disabled={confirming}
-                className="gap-1.5 bg-[#05A100] hover:bg-[#048700] text-white font-bold"
-              >
-                {confirming ? (
-                  <>
-                    <RotateCw className="h-3.5 w-3.5 animate-spin" />
-                    Confirming...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Lock as Winner
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">
+                Confirmation Notes (Optional)
+              </label>
+              <textarea
+                value={confirmationNotes}
+                onChange={(e) => setConfirmationNotes(e.target.value)}
+                placeholder="e.g. Drawn via live family animated lot wheel on 15th"
+                className="w-full text-xs p-2.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary h-20 resize-none"
+              />
+            </div>
+
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-400">
+              <strong>Important:</strong> Exactly one winner can be confirmed per monthly cycle. Once confirmed, this member is excluded from future lot spinner selections.
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowConfirmModal(false)}
+              disabled={confirming}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmWinner}
+              disabled={confirming}
+              className="gap-1.5 bg-[#05A100] hover:bg-[#048700] text-white font-bold"
+            >
+              {confirming ? (
+                <>
+                  <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                  Confirming...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Lock as Winner
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

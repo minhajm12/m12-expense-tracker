@@ -11,6 +11,21 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   PieChart,
   Plus,
   RefreshCw,
@@ -369,146 +384,135 @@ export default function BudgetsPage() {
       )}
 
       {/* Add Budget Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-emerald-500" />
-                  Define New Budget
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Track category expenses against a hard limit with automated notifications.
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddModal(false)}
-                className="h-8 w-8 p-0 rounded-full"
-              >
-                ✕
-              </Button>
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-emerald-500" />
+              Define New Budget
+            </DialogTitle>
+            <DialogDescription>
+              Track category expenses against a hard limit with automated notifications.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateBudget} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">
+                Category
+              </label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Overall Budget (All Categories)</SelectItem>
+                  {DEFAULT_EXPENSE_CATEGORIES.map((c) => (
+                    <SelectItem key={c.name} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <form onSubmit={handleCreateBudget} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-semibold text-foreground block mb-1">
-                  Category
+                  Budget Limit ({user?.currency || 'INR'})
                 </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="ALL">Overall Budget (All Categories)</option>
-                  {DEFAULT_EXPENSE_CATEGORIES.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    Budget Limit ({user?.currency || 'INR'})
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    step="any"
-                    value={limitAmount}
-                    onChange={(e) => setLimitAmount(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    Alert Threshold (%)
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={alertThresholdPercent}
-                    onChange={(e) => setAlertThresholdPercent(e.target.value)}
-                    required
-                  />
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Triggers warning when reached</p>
-                </div>
+                <Input
+                  type="number"
+                  min="1"
+                  step="any"
+                  value={limitAmount}
+                  onChange={(e) => setLimitAmount(e.target.value)}
+                  required
+                />
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-foreground block mb-1">
-                  Period Type
+                  Alert Threshold (%)
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant={period === 'monthly' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPeriod('monthly')}
-                  >
-                    Current Month
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={period === 'custom' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPeriod('custom')}
-                  >
-                    Custom Date Range
-                  </Button>
-                </div>
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={alertThresholdPercent}
+                  onChange={(e) => setAlertThresholdPercent(e.target.value)}
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground mt-0.5">Triggers warning when reached</p>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    Start Date
-                  </label>
-                  <DatePicker
-                    value={startDate}
-                    onChange={setStartDate}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    End Date
-                  </label>
-                  <DatePicker
-                    value={endDate}
-                    onChange={setEndDate}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">
+                Period Type
+              </label>
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => setShowAddModal(false)}
-                  disabled={submitting}
+                  variant={period === 'monthly' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPeriod('monthly')}
                 >
-                  Cancel
+                  Current Month
                 </Button>
                 <Button
-                  type="submit"
-                  disabled={submitting}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  type="button"
+                  variant={period === 'custom' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPeriod('custom')}
                 >
-                  {submitting ? 'Creating...' : 'Save Budget'}
+                  Custom Date Range
                 </Button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">
+                  Start Date
+                </label>
+                <DatePicker
+                  value={startDate}
+                  onChange={setStartDate}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">
+                  End Date
+                </label>
+                <DatePicker
+                  value={endDate}
+                  onChange={setEndDate}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddModal(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {submitting ? 'Creating...' : 'Save Budget'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

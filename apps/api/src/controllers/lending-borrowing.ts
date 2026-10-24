@@ -199,11 +199,13 @@ export const createLendingBorrowing = async (req: Request, res: Response): Promi
 
   const repayments = [];
   if (initialSettledAmount > 0) {
+    const initMethod = validated.paymentMethod || 'cash';
     repayments.push({
       _id: new mongoose.Types.ObjectId(),
       amount: initialSettledAmount,
       date: parseDateInput(validated.date),
-      paymentMethod: validated.paymentMethod || 'cash',
+      paymentMethod: initMethod,
+      paymentChannel: initMethod === 'upi' ? 'online' : 'offline',
       notes: 'Already repaid prior to tracking',
       isHistorical: true,
       createdAt: new Date(),
@@ -228,6 +230,7 @@ export const createLendingBorrowing = async (req: Request, res: Response): Promi
     date: parseDateInput(validated.date),
     dueDate: validated.dueDate ? parseDateInput(validated.dueDate) : undefined,
     paymentMethod: validated.paymentMethod,
+    paymentChannel: validated.paymentChannel || (validated.paymentMethod === 'upi' ? 'online' : 'offline'),
     bankAccountId: validated.bankAccountId ? new mongoose.Types.ObjectId(validated.bankAccountId) : undefined,
     description: validated.description,
     notes: validated.notes,
@@ -421,12 +424,14 @@ export const recordRepayment = async (req: Request, res: Response): Promise<void
   }
 
   const isHistorical = Boolean(validated.isHistorical);
+  const paymentChannel = validated.paymentChannel || (validated.paymentMethod === 'upi' ? 'online' : 'offline');
 
   const newRepayment = {
     _id: new mongoose.Types.ObjectId(),
     amount: validated.amount,
     date: parseDateInput(validated.date),
     paymentMethod: validated.paymentMethod,
+    paymentChannel,
     bankAccountId: validated.bankAccountId ? new mongoose.Types.ObjectId(validated.bankAccountId) : undefined,
     notes: validated.notes,
     isHistorical,

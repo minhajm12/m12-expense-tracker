@@ -9,6 +9,22 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
 import {
@@ -980,21 +996,24 @@ export default function EmiDetailPage() {
       )}
 
       {/* SECTION E: View Transaction Details Modal */}
-      {viewTxOcc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" />
-                  Transaction Details
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Linked financial record for Installment #{viewTxOcc.installmentNumber} ({viewTxOcc.occurrenceKey})
-                </p>
-              </div>
-            </div>
+      <Dialog
+        open={Boolean(viewTxOcc)}
+        onOpenChange={(open) => {
+          if (!open) setViewTxOcc(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              Transaction Details
+            </DialogTitle>
+            <DialogDescription>
+              Linked financial record for Installment #{viewTxOcc?.installmentNumber} ({viewTxOcc?.occurrenceKey})
+            </DialogDescription>
+          </DialogHeader>
 
+          {viewTxOcc && (
             <div className="space-y-3 text-xs">
               <div className="p-3 rounded-lg border border-border bg-muted/30 space-y-1.5">
                 <div className="flex justify-between">
@@ -1032,42 +1051,45 @@ export default function EmiDetailPage() {
                 </p>
               </div>
             </div>
+          )}
 
-            <div className="flex justify-between items-center pt-3 border-t border-border">
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteTransaction}
-                disabled={deletingTx}
-                className="text-xs gap-1.5"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                {deletingTx ? 'Deleting...' : 'Delete Transaction & Reopen'}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setViewTxOcc(null)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          <DialogFooter className="flex justify-between items-center pt-3 border-t border-border">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteTransaction}
+              disabled={deletingTx}
+              className="text-xs gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {deletingTx ? 'Deleting...' : 'Delete Transaction & Reopen'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setViewTxOcc(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* SECTION F: Edit Historical Payment Modal */}
-      {editingHistoricalOcc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Edit className="h-4 w-4 text-purple-500" />
-                  Edit Historical Installment #{editingHistoricalOcc.installmentNumber}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Adjust custom amount or notes for {editingHistoricalOcc.occurrenceKey}. Does not alter bank balances.
-                </p>
-              </div>
-            </div>
+      <Dialog
+        open={Boolean(editingHistoricalOcc)}
+        onOpenChange={(open) => {
+          if (!open && !submittingHistorical) setEditingHistoricalOcc(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-4 w-4 text-purple-500" />
+              Edit Historical Installment #{editingHistoricalOcc?.installmentNumber}
+            </DialogTitle>
+            <DialogDescription>
+              Adjust custom amount or notes for {editingHistoricalOcc?.occurrenceKey}. Does not alter bank balances.
+            </DialogDescription>
+          </DialogHeader>
 
+          {editingHistoricalOcc && (
             <form onSubmit={handleSaveHistorical} className="space-y-4 text-xs">
               <div>
                 <label className="font-semibold text-foreground block mb-1">
@@ -1106,7 +1128,7 @@ export default function EmiDetailPage() {
                 </p>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-2 border-t border-border">
+              <DialogFooter className="pt-2 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -1124,43 +1146,45 @@ export default function EmiDetailPage() {
                 >
                   {submittingHistorical ? 'Saving...' : 'Save Historical Payment'}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Pay EMI Popup Modal */}
-      {showPayModal && payOccurrence && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+      <Dialog
+        open={Boolean(showPayModal && payOccurrence)}
+        onOpenChange={(open) => {
+          if (!open && !submittingPay) setShowPayModal(false);
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5 text-amber-500 fill-amber-500" />
+              Confirm &amp; Pay EMI Installment
+            </DialogTitle>
+            <DialogDescription>
+              Installment #{payOccurrence?.installmentNumber} for {payOccurrence?.occurrenceKey}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleConfirmPay} className="space-y-4">
+            <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 flex justify-between items-center text-xs">
               <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Play className="h-5 w-5 text-amber-500 fill-amber-500" />
-                  Confirm &amp; Pay EMI Installment
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Installment #{payOccurrence.installmentNumber} for {payOccurrence.occurrenceKey}
-                </p>
+                <h4 className="font-bold text-sm text-foreground">{emi.name}</h4>
+                <p className="text-muted-foreground">{emi.lender}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                  Scheduled Amount
+                </span>
+                <span className="text-base font-bold font-mono text-foreground">
+                  {formatCurrency(payOccurrence?.expectedAmount || 0, user?.currency || 'INR')}
+                </span>
               </div>
             </div>
-
-            <form onSubmit={handleConfirmPay} className="space-y-4">
-              <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 flex justify-between items-center text-xs">
-                <div>
-                  <h4 className="font-bold text-sm text-foreground">{emi.name}</h4>
-                  <p className="text-muted-foreground">{emi.lender}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-                    Scheduled Amount
-                  </span>
-                  <span className="text-base font-bold font-mono text-foreground">
-                    {formatCurrency(payOccurrence.expectedAmount, user?.currency || 'INR')}
-                  </span>
-                </div>
-              </div>
 
               {/* Dynamic Payment Method Selection */}
               <div className="space-y-3 pt-1 border-t border-border/60">
@@ -1168,11 +1192,10 @@ export default function EmiDetailPage() {
                   <label className="text-xs font-semibold text-foreground block mb-1">
                     Payment Method for This Installment
                   </label>
-                  <select
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  <Select
                     value={payPaymentMethod}
-                    onChange={(e) => {
-                      const pm = e.target.value as PaymentMethod;
+                    onValueChange={(val) => {
+                      const pm = val as PaymentMethod;
                       setPayPaymentMethod(pm);
                       if (pm === PaymentMethod.CREDIT_CARD && !payCreditCardId && cards.length > 0) {
                         setPayCreditCardId(cards[0].id);
@@ -1186,10 +1209,15 @@ export default function EmiDetailPage() {
                       }
                     }}
                   >
-                    <option value={PaymentMethod.UPI}>UPI / Bank Account</option>
-                    <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                    <option value={PaymentMethod.CASH}>Personal Cash in Hand</option>
-                  </select>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Payment Method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={PaymentMethod.UPI}>UPI / Bank Account</SelectItem>
+                      <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                      <SelectItem value={PaymentMethod.CASH}>Personal Cash in Hand</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {payPaymentMethod === PaymentMethod.CREDIT_CARD && (
@@ -1197,19 +1225,21 @@ export default function EmiDetailPage() {
                     <label className="text-xs font-semibold text-foreground block">
                       Select Credit Card *
                     </label>
-                    <select
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={payCreditCardId}
-                      onChange={(e) => setPayCreditCardId(e.target.value)}
-                      required
+                    <Select
+                      value={payCreditCardId || undefined}
+                      onValueChange={setPayCreditCardId}
                     >
-                      <option value="">-- Choose Credit Card --</option>
-                      {cards.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.cardNickname}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="-- Choose Credit Card --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cards.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.cardNickname}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
@@ -1225,19 +1255,21 @@ export default function EmiDetailPage() {
                     <label className="text-xs font-semibold text-foreground block">
                       Select Bank Account *
                     </label>
-                    <select
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={payAccountId}
-                      onChange={(e) => setPayAccountId(e.target.value)}
-                      required
+                    <Select
+                      value={payAccountId || undefined}
+                      onValueChange={setPayAccountId}
                     >
-                      <option value="">-- Choose Bank Account --</option>
-                      {accounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.accountName}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="-- Choose Bank Account --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.accountName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
@@ -1321,7 +1353,7 @@ export default function EmiDetailPage() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Scheduled Amount:</span>
                       <span className="font-mono text-muted-foreground line-through">
-                        {discountAmount > 0 ? formatCurrency(payOccurrence.expectedAmount, user?.currency || 'INR') : ''}
+                        {discountAmount > 0 ? formatCurrency(payOccurrence?.expectedAmount || 0, user?.currency || 'INR') : ''}
                       </span>
                     </div>
                     {discountAmount > 0 && (
@@ -1340,7 +1372,7 @@ export default function EmiDetailPage() {
                 );
               })()}
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+              <DialogFooter className="pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -1358,29 +1390,25 @@ export default function EmiDetailPage() {
                 >
                   {submittingPay ? 'Confirming...' : 'Confirm Payment'}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
 
       {/* Edit EMI Settings Modal */}
-      {showEditEmiModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Edit className="h-4 w-4 text-amber-500" />
-                  Edit EMI Settings
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Update expected monthly installment, next due date, or final end date.
-                </p>
-              </div>
-            </div>
+      <Dialog open={showEditEmiModal} onOpenChange={setShowEditEmiModal}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-4 w-4 text-amber-500" />
+              Edit EMI Settings
+            </DialogTitle>
+            <DialogDescription>
+              Update expected monthly installment, next due date, or final end date.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleSaveEditEmi} className="space-y-4 text-xs">
+          <form onSubmit={handleSaveEditEmi} className="space-y-4 text-xs">
               <div>
                 <label className="font-semibold text-foreground block mb-1">
                   Monthly Installment Amount (₹) *
@@ -1403,10 +1431,11 @@ export default function EmiDetailPage() {
                 <label className="font-semibold text-foreground block mb-1">
                   Next Expected EMI Date
                 </label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={editNextEmiDate}
-                  onChange={(e) => setEditNextEmiDate(e.target.value)}
+                  onChange={setEditNextEmiDate}
+                  placeholder="Pick next EMI date"
+                  className="h-10 text-sm"
                 />
               </div>
 
@@ -1414,11 +1443,11 @@ export default function EmiDetailPage() {
                 <label className="font-semibold text-foreground block mb-1">
                   Final End Date *
                 </label>
-                <Input
-                  type="date"
-                  required
+                <DatePicker
                   value={editEndDate}
-                  onChange={(e) => setEditEndDate(e.target.value)}
+                  onChange={setEditEndDate}
+                  placeholder="Pick final end date"
+                  className="h-10 text-sm"
                 />
               </div>
 
@@ -1426,15 +1455,19 @@ export default function EmiDetailPage() {
                 <label className="font-semibold text-foreground block mb-1">
                   Default Payment Method
                 </label>
-                <select
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <Select
                   value={editPaymentMethod}
-                  onChange={(e) => setEditPaymentMethod(e.target.value as PaymentMethod)}
+                  onValueChange={(val) => setEditPaymentMethod(val as PaymentMethod)}
                 >
-                  <option value={PaymentMethod.UPI}>UPI / Bank Account</option>
-                  <option value={PaymentMethod.CREDIT_CARD}>Credit Card</option>
-                  <option value={PaymentMethod.CASH}>Personal Cash in Hand</option>
-                </select>
+                  <SelectTrigger className="h-10 text-sm">
+                    <SelectValue placeholder="Payment Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PaymentMethod.UPI}>UPI / Bank Account</SelectItem>
+                    <SelectItem value={PaymentMethod.CREDIT_CARD}>Credit Card</SelectItem>
+                    <SelectItem value={PaymentMethod.CASH}>Personal Cash in Hand</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {editPaymentMethod === PaymentMethod.CREDIT_CARD ? (
@@ -1442,36 +1475,42 @@ export default function EmiDetailPage() {
                   <label className="font-semibold text-foreground block mb-1">
                     Select Credit Card
                   </label>
-                  <select
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={editCreditCardId}
-                    onChange={(e) => setEditCreditCardId(e.target.value)}
+                  <Select
+                    value={editCreditCardId || undefined}
+                    onValueChange={setEditCreditCardId}
                   >
-                    <option value="">-- Choose Credit Card --</option>
-                    {cards.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.cardNickname}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="-- Choose Credit Card --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cards.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.cardNickname}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : editPaymentMethod !== PaymentMethod.CASH ? (
                 <div>
                   <label className="font-semibold text-foreground block mb-1">
                     Select Bank Account
                   </label>
-                  <select
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={editAccountId}
-                    onChange={(e) => setEditAccountId(e.target.value)}
+                  <Select
+                    value={editAccountId || undefined}
+                    onValueChange={setEditAccountId}
                   >
-                    <option value="">-- Choose Bank Account --</option>
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.accountName}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="-- Choose Bank Account --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.accountName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : null}
 
@@ -1485,7 +1524,7 @@ export default function EmiDetailPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+              <DialogFooter className="pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -1503,11 +1542,10 @@ export default function EmiDetailPage() {
                 >
                   {submittingEditEmi ? 'Saving...' : 'Save Settings'}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }

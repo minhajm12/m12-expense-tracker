@@ -4,6 +4,13 @@ import * as React from 'react';
 import { Calendar as CalendarIcon, Clock, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { formatCurrency } from '@finora/shared';
 
 const MONTHS = [
@@ -118,34 +125,42 @@ export function MonthYearRangePicker({
             From Month
           </label>
           <div className="flex gap-2">
-            <select
+            <Select
               value={startMonthNum}
-              onChange={(e) => {
-                setStartMonthNum(e.target.value);
-                handleUpdate(startYear, e.target.value, endYear, endMonthNum);
+              onValueChange={(val) => {
+                setStartMonthNum(val);
+                handleUpdate(startYear, val, endYear, endMonthNum);
               }}
-              className="flex-1 h-9 rounded-lg border border-border bg-background px-2.5 text-xs focus:ring-1 focus:ring-emerald-400 focus:outline-none"
             >
-              {MONTHS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label} ({m.value})
-                </option>
-              ))}
-            </select>
-            <select
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label} ({m.value})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={startYear}
-              onChange={(e) => {
-                setStartYear(e.target.value);
-                handleUpdate(e.target.value, startMonthNum, endYear, endMonthNum);
+              onValueChange={(val) => {
+                setStartYear(val);
+                handleUpdate(val, startMonthNum, endYear, endMonthNum);
               }}
-              className="w-24 h-9 rounded-lg border border-border bg-background px-2.5 text-xs focus:ring-1 focus:ring-emerald-400 focus:outline-none"
             >
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-24 h-9 text-xs font-mono">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -155,34 +170,42 @@ export function MonthYearRangePicker({
             To Month (Inclusive)
           </label>
           <div className="flex gap-2">
-            <select
+            <Select
               value={endMonthNum}
-              onChange={(e) => {
-                setEndMonthNum(e.target.value);
-                handleUpdate(startYear, startMonthNum, endYear, e.target.value);
+              onValueChange={(val) => {
+                setEndMonthNum(val);
+                handleUpdate(startYear, startMonthNum, endYear, val);
               }}
-              className="flex-1 h-9 rounded-lg border border-border bg-background px-2.5 text-xs focus:ring-1 focus:ring-emerald-400 focus:outline-none"
             >
-              {MONTHS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label} ({m.value})
-                </option>
-              ))}
-            </select>
-            <select
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label} ({m.value})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={endYear}
-              onChange={(e) => {
-                setEndYear(e.target.value);
-                handleUpdate(startYear, startMonthNum, e.target.value, endMonthNum);
+              onValueChange={(val) => {
+                setEndYear(val);
+                handleUpdate(startYear, startMonthNum, val, endMonthNum);
               }}
-              className="w-24 h-9 rounded-lg border border-border bg-background px-2.5 text-xs focus:ring-1 focus:ring-emerald-400 focus:outline-none"
             >
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-24 h-9 text-xs font-mono">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>

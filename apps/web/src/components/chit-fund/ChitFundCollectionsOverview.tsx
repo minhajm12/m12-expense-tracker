@@ -5,6 +5,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Users,
   CheckCircle2,
   Clock,
@@ -191,17 +198,21 @@ export function ChitFundCollectionsOverview({
         <div className="flex items-center gap-2.5 flex-wrap">
           <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border">
             <span className="text-[11px] font-semibold text-muted-foreground px-2">Cycle:</span>
-            <select
+            <Select
               value={selectedCycle}
-              onChange={(e) => setSelectedCycle(e.target.value)}
-              className="text-xs font-bold font-mono px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              onValueChange={(val) => setSelectedCycle(val)}
             >
-              {availableCycles.map((cyc) => (
-                <option key={cyc} value={cyc}>
-                  {formatCyclePillLabel(cyc)} ({cyc})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 text-xs font-bold font-mono px-2.5 w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCycles.map((cyc) => (
+                  <SelectItem key={cyc} value={cyc} className="font-mono text-xs">
+                    {formatCyclePillLabel(cyc)} ({cyc})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <Button

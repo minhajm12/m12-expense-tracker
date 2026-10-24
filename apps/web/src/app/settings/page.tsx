@@ -9,6 +9,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/toast';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   Coins,
   CreditCard,
   Repeat,
@@ -931,25 +946,30 @@ export default function SettingsPage() {
                   </p>
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1">
-                    <select
-                      value={selectedInvestmentId}
-                      onChange={(e) => setSelectedInvestmentId(e.target.value)}
+                    <Select
+                      value={selectedInvestmentId || undefined}
+                      onValueChange={setSelectedInvestmentId}
                       disabled={loadingInvestmentsList || investmentsList.length === 0}
-                      className="flex h-9 w-full sm:w-72 rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <option value="">
-                        {loadingInvestmentsList
-                          ? 'Loading investments...'
-                          : investmentsList.length === 0
-                            ? 'No investments found'
-                            : 'Select an investment to reset...'}
-                      </option>
-                      {investmentsList.map((inv) => (
-                        <option key={inv.id || inv._id} value={inv.id || inv._id}>
-                          {inv.name} ({inv.category}) — ₹{(inv.totalInvested || inv.totalContributed || 0).toLocaleString()}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-9 w-full sm:w-72 text-xs">
+                        <SelectValue
+                          placeholder={
+                            loadingInvestmentsList
+                              ? 'Loading investments...'
+                              : investmentsList.length === 0
+                                ? 'No investments found'
+                                : 'Select an investment to reset...'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {investmentsList.map((inv) => (
+                          <SelectItem key={inv.id || inv._id} value={inv.id || inv._id}>
+                            {inv.name} ({inv.category}) — ₹{(inv.totalInvested || inv.totalContributed || 0).toLocaleString()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
                     <Button
                       type="button"
@@ -1538,19 +1558,29 @@ export default function SettingsPage() {
       </div>
 
       {/* Reset Selected Transactions Confirmation Modal */}
-      {showOptionAModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={showOptionAModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowOptionAModal(false);
+            setConfirmationPhraseA('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500 font-bold border border-amber-500/30">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Confirm Selective Data Reset</h3>
-                <p className="text-xs text-muted-foreground">Reset Selected Transactions &amp; Entries</p>
+                <DialogTitle className="text-base font-bold text-foreground">Confirm Selective Data Reset</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Reset Selected Transactions &amp; Entries</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-1">
             <div className="space-y-2 text-xs text-muted-foreground">
               <p>
                 You are about to delete <strong className="text-foreground">{selectedTypesA.size} categories</strong> of financial activity.
@@ -1582,51 +1612,62 @@ export default function SettingsPage() {
                 className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowOptionAModal(false);
-                  setConfirmationPhraseA('');
-                }}
-                disabled={isResettingA}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleExecuteResetA}
-                isLoading={isResettingA}
-                disabled={confirmationPhraseA !== 'RESET MY DATA' || isResettingA}
-                className="gap-2 text-xs"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Confirm Reset
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowOptionAModal(false);
+                setConfirmationPhraseA('');
+              }}
+              disabled={isResettingA}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleExecuteResetA}
+              isLoading={isResettingA}
+              disabled={confirmationPhraseA !== 'RESET MY DATA' || isResettingA}
+              className="gap-2 text-xs"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Confirm Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Option B Confirmation Modal */}
-      {showOptionBModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-destructive/40 shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={showOptionBModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowOptionBModal(false);
+            setConfirmationPhraseB('');
+            setPasswordB('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive font-bold border border-destructive/30">
                 <Trash2 className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-destructive">Wipe All Financial Data</h3>
-                <p className="text-xs text-muted-foreground">Option B: Start Financial Setup Again</p>
+                <DialogTitle className="text-base font-bold text-destructive">Wipe All Financial Data</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Option B: Start Financial Setup Again</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-1">
             <div className="space-y-2 text-xs text-muted-foreground">
               <p className="text-destructive font-medium">
                 This will delete all your accounts, credit cards, chit fund records, transactions, and budgets.
@@ -1663,140 +1704,159 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowOptionBModal(false);
-                  setConfirmationPhraseB('');
-                  setPasswordB('');
-                }}
-                disabled={isResettingB}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleExecuteResetB}
-                isLoading={isResettingB}
-                disabled={confirmationPhraseB !== 'RESET MY DATA' || isResettingB}
-                className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Permanently Wipe Data
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowOptionBModal(false);
+                setConfirmationPhraseB('');
+                setPasswordB('');
+              }}
+              disabled={isResettingB}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleExecuteResetB}
+              isLoading={isResettingB}
+              disabled={confirmationPhraseB !== 'RESET MY DATA' || isResettingB}
+              className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Permanently Wipe Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Chit Winner Month Reset Modal */}
-      {showResetCycleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={showResetCycleModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowResetCycleModal(false);
+            setResetReason('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500 font-bold border border-amber-500/30">
                 <RotateCcw className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">
+                <DialogTitle className="text-base font-bold text-foreground">
                   Reset Winner for {formatCyclePill(selectedCyclePeriod)}
-                </h3>
-                <p className="text-xs text-muted-foreground">Cycle Period: {selectedCyclePeriod}</p>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Cycle Period: {selectedCyclePeriod}</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
-            <div className="space-y-3 text-xs text-muted-foreground">
-              {(() => {
-                const c = cycles.find((x: any) => x.cyclePeriod === selectedCyclePeriod);
-                return (
-                  <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span>Confirmed Winner:</span>
-                      <strong className="text-foreground">{c?.winnerMemberName || 'Member'}</strong>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span>Current Status:</span>
-                      <span className="text-amber-400 capitalize">{c?.status || 'winner_selected'}</span>
-                    </div>
+          <div className="space-y-3 text-xs text-muted-foreground pt-1">
+            {(() => {
+              const c = cycles.find((x: any) => x.cyclePeriod === selectedCyclePeriod);
+              return (
+                <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span>Confirmed Winner:</span>
+                    <strong className="text-foreground">{c?.winnerMemberName || 'Member'}</strong>
                   </div>
-                );
-              })()}
+                  <div className="flex justify-between text-xs">
+                    <span>Current Status:</span>
+                    <span className="text-amber-400 capitalize">{c?.status || 'winner_selected'}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
-              <p className="leading-relaxed">
-                Resetting will clear the winner assignment for this monthly cycle and make the member eligible again for future lot selections (unless they have won in another cycle).
+            <p className="leading-relaxed">
+              Resetting will clear the winner assignment for this monthly cycle and make the member eligible again for future lot selections (unless they have won in another cycle).
+            </p>
+
+            <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-400 space-y-1">
+              <p className="font-semibold">Financial Safety Guard:</p>
+              <p>
+                If a payout has already been completed for this cycle, the reset will be rejected to protect accounting records.
               </p>
-
-              <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-400 space-y-1">
-                <p className="font-semibold">Financial Safety Guard:</p>
-                <p>
-                  If a payout has already been completed for this cycle, the reset will be rejected to protect accounting records.
-                </p>
-              </div>
-
-              <div className="space-y-1.5 pt-1">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Reason for Reset (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={resetReason}
-                  onChange={(e) => setResetReason(e.target.value)}
-                  placeholder="e.g. Winner unable to claim or test lot draw reset"
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowResetCycleModal(false);
-                  setResetReason('');
-                }}
-                disabled={isResettingCycleWinner}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleResetCycleWinner}
-                isLoading={isResettingCycleWinner}
-                disabled={isResettingCycleWinner}
-                className="gap-2 text-xs"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Confirm Reset Winner
-              </Button>
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Reason for Reset (Optional)
+              </label>
+              <input
+                type="text"
+                value={resetReason}
+                onChange={(e) => setResetReason(e.target.value)}
+                placeholder="e.g. Winner unable to claim or test lot draw reset"
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowResetCycleModal(false);
+                setResetReason('');
+              }}
+              disabled={isResettingCycleWinner}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleResetCycleWinner}
+              isLoading={isResettingCycleWinner}
+              disabled={isResettingCycleWinner}
+              className="gap-2 text-xs"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Confirm Reset Winner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Chit Reset All Winners Modal (Option B) */}
-      {showResetAllWinnersModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-destructive/40 shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={showResetAllWinnersModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowResetAllWinnersModal(false);
+            setConfirmationPhraseWinners('');
+            setResetReason('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive font-bold border border-destructive/30">
                 <Trash2 className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-destructive">Reset All Chit Winners</h3>
-                <p className="text-xs text-muted-foreground">Option B: Clear All Winner Assignments</p>
+                <DialogTitle className="text-base font-bold text-destructive">Reset All Chit Winners</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Option B: Clear All Winner Assignments</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-1">
             <div className="space-y-2 text-xs text-muted-foreground">
               <p className="text-destructive font-medium">
                 This will clear confirmed winner assignments across all cycles of this chit fund.
@@ -1839,209 +1899,231 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowResetAllWinnersModal(false);
-                  setConfirmationPhraseWinners('');
-                  setResetReason('');
-                }}
-                disabled={isResettingAllWinners}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleResetAllWinners}
-                isLoading={isResettingAllWinners}
-                disabled={confirmationPhraseWinners !== 'RESET WINNERS' || isResettingAllWinners}
-                className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Confirm Reset All Winners
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowResetAllWinnersModal(false);
+                setConfirmationPhraseWinners('');
+                setResetReason('');
+              }}
+              disabled={isResettingAllWinners}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleResetAllWinners}
+              isLoading={isResettingAllWinners}
+              disabled={confirmationPhraseWinners !== 'RESET WINNERS' || isResettingAllWinners}
+              className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Confirm Reset All Winners
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Chit Fund Financial Reset Modal */}
-      {showChitFundResetModal && chitFundResetPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-lg rounded-2xl border border-destructive/40 shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={Boolean(showChitFundResetModal && chitFundResetPreview)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowChitFundResetModal(false);
+            setConfirmationPhraseChitFund('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive font-bold border border-destructive/30">
                 <Coins className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-destructive">Reset Chit Fund Financial Data</h3>
-                <p className="text-xs text-muted-foreground">Start chit fund fresh with preserved members</p>
+                <DialogTitle className="text-base font-bold text-destructive">Reset Chit Fund Financial Data</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Start chit fund fresh with preserved members</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
-            <div className="space-y-3 text-xs text-muted-foreground">
-              <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
-                <p className="font-semibold text-foreground">Records to be cleared:</p>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="p-2 rounded bg-card border border-border/60">
-                    <span className="text-muted-foreground">Collections:</span>
-                    <strong className="block text-foreground text-sm font-mono">{chitFundResetPreview.collectionsCount}</strong>
+          {chitFundResetPreview && (
+            <div className="space-y-4 pt-1">
+              <div className="space-y-3 text-xs text-muted-foreground">
+                <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
+                  <p className="font-semibold text-foreground">Records to be cleared:</p>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="p-2 rounded bg-card border border-border/60">
+                      <span className="text-muted-foreground">Collections:</span>
+                      <strong className="block text-foreground text-sm font-mono">{chitFundResetPreview.collectionsCount}</strong>
+                    </div>
+                    <div className="p-2 rounded bg-card border border-border/60">
+                      <span className="text-muted-foreground">Payouts:</span>
+                      <strong className="block text-foreground text-sm font-mono">{chitFundResetPreview.payoutsCount}</strong>
+                    </div>
+                    <div className="p-2 rounded bg-card border border-border/60">
+                      <span className="text-muted-foreground">Cycles Reset:</span>
+                      <strong className="block text-foreground text-sm font-mono">{chitFundResetPreview.cyclesCount}</strong>
+                    </div>
+                    <div className="p-2 rounded bg-card border border-border/60">
+                      <span className="text-muted-foreground">Ledger Entries:</span>
+                      <strong className="block text-foreground text-sm font-mono">{chitFundResetPreview.ledgerEntriesCount}</strong>
+                    </div>
                   </div>
-                  <div className="p-2 rounded bg-card border border-border/60">
-                    <span className="text-muted-foreground">Payouts:</span>
-                    <strong className="block text-foreground text-sm font-mono">{chitFundResetPreview.payoutsCount}</strong>
-                  </div>
-                  <div className="p-2 rounded bg-card border border-border/60">
-                    <span className="text-muted-foreground">Cycles Reset:</span>
-                    <strong className="block text-foreground text-sm font-mono">{chitFundResetPreview.cyclesCount}</strong>
-                  </div>
-                  <div className="p-2 rounded bg-card border border-border/60">
-                    <span className="text-muted-foreground">Ledger Entries:</span>
-                    <strong className="block text-foreground text-sm font-mono">{chitFundResetPreview.ledgerEntriesCount}</strong>
-                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-400 space-y-1">
+                  <p className="font-semibold flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                    Preserved Without Changes:
+                  </p>
+                  <p>
+                    • <strong>{chitFundResetPreview.membersPreserved} Members</strong> preserved (each standardized to 1 chit @ ₹5,000/mo).
+                  </p>
+                  <p>
+                    • Designated Bank Account:{' '}
+                    <strong>
+                      {chitFundResetPreview.designatedAccount
+                        ? `${chitFundResetPreview.designatedAccount.accountName} (₹${chitFundResetPreview.designatedAccount.currentBalance.toLocaleString()} preserved)`
+                        : 'None designated'}
+                    </strong>
+                  </p>
+                  <p>• An audit snapshot ({chitFundResetPreview.backupSnapshotCollection}) will be saved before deletion.</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-400 space-y-1">
-                <p className="font-semibold flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                  Preserved Without Changes:
-                </p>
-                <p>
-                  • <strong>{chitFundResetPreview.membersPreserved} Members</strong> preserved (each standardized to 1 chit @ ₹5,000/mo).
-                </p>
-                <p>
-                  • Designated Bank Account:{' '}
-                  <strong>
-                    {chitFundResetPreview.designatedAccount
-                      ? `${chitFundResetPreview.designatedAccount.accountName} (₹${chitFundResetPreview.designatedAccount.currentBalance.toLocaleString()} preserved)`
-                      : 'None designated'}
-                  </strong>
-                </p>
-                <p>• An audit snapshot ({chitFundResetPreview.backupSnapshotCollection}) will be saved before deletion.</p>
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Type <span className="text-destructive font-mono font-bold select-all">RESET CHIT FINANCIALS</span> to confirm
+                </label>
+                <input
+                  type="text"
+                  value={confirmationPhraseChitFund}
+                  onChange={(e) => setConfirmationPhraseChitFund(e.target.value)}
+                  placeholder="RESET CHIT FINANCIALS"
+                  className="flex h-10 w-full rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+                />
               </div>
             </div>
+          )}
 
-            <div className="space-y-1.5 pt-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Type <span className="text-destructive font-mono font-bold select-all">RESET CHIT FINANCIALS</span> to confirm
-              </label>
-              <input
-                type="text"
-                value={confirmationPhraseChitFund}
-                onChange={(e) => setConfirmationPhraseChitFund(e.target.value)}
-                placeholder="RESET CHIT FINANCIALS"
-                className="flex h-10 w-full rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowChitFundResetModal(false);
-                  setConfirmationPhraseChitFund('');
-                }}
-                disabled={isResettingChitFund}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleExecuteResetChitFundFinancials}
-                isLoading={isResettingChitFund}
-                disabled={confirmationPhraseChitFund !== 'RESET CHIT FINANCIALS' || isResettingChitFund}
-                className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Confirm Reset Chit Financials
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowChitFundResetModal(false);
+                setConfirmationPhraseChitFund('');
+              }}
+              disabled={isResettingChitFund}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleExecuteResetChitFundFinancials}
+              isLoading={isResettingChitFund}
+              disabled={confirmationPhraseChitFund !== 'RESET CHIT FINANCIALS' || isResettingChitFund}
+              className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Confirm Reset Chit Financials
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reset Single Investment Modal */}
-      {showResetSingleInvestmentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-destructive/40 shadow-2xl p-6 space-y-5">
+      <Dialog open={showResetSingleInvestmentModal} onOpenChange={setShowResetSingleInvestmentModal}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive font-bold border border-destructive/30">
                 <Trash2 className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-destructive">Delete Selected Investment</h3>
-                <p className="text-xs text-muted-foreground">Remove investment and associated schedule</p>
+                <DialogTitle className="text-base font-bold text-destructive">Delete Selected Investment</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Remove investment and associated schedule</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
-            <div className="space-y-3 text-xs text-muted-foreground">
-              {(() => {
-                const inv = investmentsList.find((i) => (i.id || i._id) === selectedInvestmentId);
-                return (
-                  <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1.5">
-                    <p className="font-semibold text-foreground text-sm">{inv?.name || 'Selected Investment'}</p>
-                    <p>Category: <strong className="text-foreground">{inv?.category}</strong></p>
-                    <p>Total Contributed: <strong className="text-foreground font-mono">₹{(inv?.totalInvested || inv?.totalContributed || 0).toLocaleString()}</strong></p>
-                  </div>
-                );
-              })()}
-              <div className="p-2.5 rounded bg-destructive/10 border border-destructive/30 text-[11px] text-destructive">
-                This will delete the investment, its entire monthly contribution schedule, and any linked transactions. Bank balances debited for past payments will be safely restored.
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowResetSingleInvestmentModal(false)}
-                disabled={isResettingSingleInvestment}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleResetSingleInvestment}
-                isLoading={isResettingSingleInvestment}
-                disabled={isResettingSingleInvestment}
-                className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Confirm Delete Investment
-              </Button>
+          <div className="space-y-3 text-xs text-muted-foreground pt-1">
+            {(() => {
+              const inv = investmentsList.find((i) => (i.id || i._id) === selectedInvestmentId);
+              return (
+                <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1.5">
+                  <p className="font-semibold text-foreground text-sm">{inv?.name || 'Selected Investment'}</p>
+                  <p>Category: <strong className="text-foreground">{inv?.category}</strong></p>
+                  <p>Total Contributed: <strong className="text-foreground font-mono">₹{(inv?.totalInvested || inv?.totalContributed || 0).toLocaleString()}</strong></p>
+                </div>
+              );
+            })()}
+            <div className="p-2.5 rounded bg-destructive/10 border border-destructive/30 text-[11px] text-destructive">
+              This will delete the investment, its entire monthly contribution schedule, and any linked transactions. Bank balances debited for past payments will be safely restored.
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowResetSingleInvestmentModal(false)}
+              disabled={isResettingSingleInvestment}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleResetSingleInvestment}
+              isLoading={isResettingSingleInvestment}
+              disabled={isResettingSingleInvestment}
+              className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Confirm Delete Investment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reset All Investments Modal */}
-      {showResetAllInvestmentsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-lg rounded-2xl border border-destructive/40 shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={showResetAllInvestmentsModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowResetAllInvestmentsModal(false);
+            setConfirmationPhraseInvestments('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive font-bold border border-destructive/30">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-destructive">Reset All Investments</h3>
-                <p className="text-xs text-muted-foreground">Clear all investment portfolios and schedules</p>
+                <DialogTitle className="text-base font-bold text-destructive">Reset All Investments</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Clear all investment portfolios and schedules</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-1">
             <div className="space-y-3 text-xs text-muted-foreground">
               <div className="p-3.5 rounded-lg bg-muted/50 border border-border space-y-2">
                 <p className="font-semibold text-foreground">Action Summary:</p>
@@ -2072,54 +2154,64 @@ export default function SettingsPage() {
                 onChange={(e) => setConfirmationPhraseInvestments(e.target.value)}
                 placeholder="RESET INVESTMENTS"
                 className="flex h-10 w-full rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
-              >
-              </input>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowResetAllInvestmentsModal(false);
-                  setConfirmationPhraseInvestments('');
-                }}
-                disabled={isResettingAllInvestments}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleResetAllInvestments}
-                isLoading={isResettingAllInvestments}
-                disabled={confirmationPhraseInvestments !== 'RESET INVESTMENTS' || isResettingAllInvestments}
-                className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Confirm Reset All Investments
-              </Button>
+              />
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowResetAllInvestmentsModal(false);
+                setConfirmationPhraseInvestments('');
+              }}
+              disabled={isResettingAllInvestments}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleResetAllInvestments}
+              isLoading={isResettingAllInvestments}
+              disabled={confirmationPhraseInvestments !== 'RESET INVESTMENTS' || isResettingAllInvestments}
+              className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Confirm Reset All Investments
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Account Permanently Confirmation Modal */}
-      {showDeleteAccountModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-destructive/60 shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={showDeleteAccountModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowDeleteAccountModal(false);
+            setConfirmationPhraseDeleteAccount('');
+            setDeleteAccountPassword('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/20 text-destructive font-bold border border-destructive/40">
                 <UserX className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-destructive">Delete My Account Permanently</h3>
-                <p className="text-xs text-muted-foreground">Irreversible Account Termination</p>
+                <DialogTitle className="text-base font-bold text-destructive">Delete My Account Permanently</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Irreversible Account Termination</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-1">
             <div className="space-y-3 text-xs text-muted-foreground">
               <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-[11px] text-destructive space-y-1">
                 <p className="font-semibold flex items-center gap-1.5">
@@ -2162,52 +2254,62 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowDeleteAccountModal(false);
-                  setConfirmationPhraseDeleteAccount('');
-                  setDeleteAccountPassword('');
-                }}
-                disabled={isDeletingAccount}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteAccountPermanently}
-                isLoading={isDeletingAccount}
-                disabled={confirmationPhraseDeleteAccount !== 'DELETE' || isDeletingAccount}
-                className="gap-2 text-xs bg-destructive hover:bg-destructive/90 text-white font-semibold"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete My Account Permanently (Irreversible)
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowDeleteAccountModal(false);
+                setConfirmationPhraseDeleteAccount('');
+                setDeleteAccountPassword('');
+              }}
+              disabled={isDeletingAccount}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteAccountPermanently}
+              isLoading={isDeletingAccount}
+              disabled={confirmationPhraseDeleteAccount !== 'DELETE' || isDeletingAccount}
+              className="gap-2 text-xs bg-destructive hover:bg-destructive/90 text-white font-semibold"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete My Account Permanently (Irreversible)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reset Lending & Borrowing Confirmation Modal */}
-      {showResetLendingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-destructive/40 shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={showResetLendingModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowResetLendingModal(false);
+            setConfirmationPhraseLending('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive font-bold border border-destructive/30">
                 <HandCoins className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-destructive">Reset Lending &amp; Borrowing Data</h3>
-                <p className="text-xs text-muted-foreground">Clear all loans and repayments</p>
+                <DialogTitle className="text-base font-bold text-destructive">Reset Lending &amp; Borrowing Data</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Clear all loans and repayments</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-1">
             <div className="space-y-2 text-xs text-muted-foreground">
               <p className="text-destructive font-medium">
                 This will permanently delete all lending, borrowing, and repayment history for your account.
@@ -2229,51 +2331,61 @@ export default function SettingsPage() {
                 className="flex h-10 w-full rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
               />
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowResetLendingModal(false);
-                  setConfirmationPhraseLending('');
-                }}
-                disabled={isResettingLending}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleExecuteResetLending}
-                isLoading={isResettingLending}
-                disabled={confirmationPhraseLending !== 'RESET LENDING DATA' || isResettingLending}
-                className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Confirm Reset Lending Data
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowResetLendingModal(false);
+                setConfirmationPhraseLending('');
+              }}
+              disabled={isResettingLending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleExecuteResetLending}
+              isLoading={isResettingLending}
+              disabled={confirmationPhraseLending !== 'RESET LENDING DATA' || isResettingLending}
+              className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Confirm Reset Lending Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reset EMI Data Confirmation Modal */}
-      {showResetEmiModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-destructive/40 shadow-2xl p-6 space-y-5">
+      <Dialog
+        open={showResetEmiModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowResetEmiModal(false);
+            setConfirmationPhraseEmi('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive font-bold border border-destructive/30">
                 <Percent className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-destructive">Reset EMI Management Data</h3>
-                <p className="text-xs text-muted-foreground">Clear loan rules and installment schedules</p>
+                <DialogTitle className="text-base font-bold text-destructive">Reset EMI Management Data</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">Clear loan rules and installment schedules</DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-1">
             <div className="space-y-2 text-xs text-muted-foreground">
               <p className="text-destructive font-medium">
                 This will permanently delete all active and completed EMI loan rules, scheduled installments, and linked transactions.
@@ -2295,36 +2407,36 @@ export default function SettingsPage() {
                 className="flex h-10 w-full rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
               />
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowResetEmiModal(false);
-                  setConfirmationPhraseEmi('');
-                }}
-                disabled={isResettingEmi}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleExecuteResetEmi}
-                isLoading={isResettingEmi}
-                disabled={confirmationPhraseEmi !== 'RESET EMI DATA' || isResettingEmi}
-                className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Confirm Reset EMI Data
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowResetEmiModal(false);
+                setConfirmationPhraseEmi('');
+              }}
+              disabled={isResettingEmi}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleExecuteResetEmi}
+              isLoading={isResettingEmi}
+              disabled={confirmationPhraseEmi !== 'RESET EMI DATA' || isResettingEmi}
+              className="gap-2 text-xs bg-destructive hover:bg-destructive/90"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Confirm Reset EMI Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

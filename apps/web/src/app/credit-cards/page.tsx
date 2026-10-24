@@ -9,6 +9,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   CreditCard as CreditCardIcon,
   Plus,
   RefreshCw,
@@ -561,585 +576,591 @@ export default function CreditCardsPage() {
       )}
 
       {/* Add Credit Card Modal */}
-      {showAddCardModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg md:max-w-2xl shadow-2xl border-border animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Add Credit Card</CardTitle>
-              <CardDescription>
-                M12 Expense Tracker tracks card liabilities securely without requiring full card numbers, CVVs, or PINs.
-              </CardDescription>
-            </CardHeader>
+      <Dialog open={showAddCardModal} onOpenChange={setShowAddCardModal}>
+        <DialogContent className="max-w-lg md:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Credit Card</DialogTitle>
+            <DialogDescription>
+              M12 Expense Tracker tracks card liabilities securely without requiring full card numbers, CVVs, or PINs.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleCreateCard}>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Card Nickname *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Infinia Metal, Sapphire"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={cardNickname}
-                      onChange={(e) => setCardNickname(e.target.value)}
-                      required
-                    />
-                  </div>
+          <form onSubmit={handleCreateCard} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Card Nickname *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Infinia Metal, Sapphire"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={cardNickname}
+                  onChange={(e) => setCardNickname(e.target.value)}
+                  required
+                />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Issuing Bank *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. HDFC Bank, Chase, SBI"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={issuingBank}
-                      onChange={(e) => setIssuingBank(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Issuing Bank *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. HDFC Bank, Chase, SBI"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={issuingBank}
+                  onChange={(e) => setIssuingBank(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Network
-                    </label>
-                    <select
-                      value={network}
-                      onChange={(e) => setNetwork(e.target.value as CreditCardNetwork)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring uppercase"
-                    >
-                      {Object.values(CreditCardNetwork).map((n) => (
-                        <option key={n} value={n}>
-                          {n}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Network
+                </label>
+                <Select
+                  value={network}
+                  onValueChange={(val) => setNetwork(val as CreditCardNetwork)}
+                >
+                  <SelectTrigger className="h-10 text-sm uppercase">
+                    <SelectValue placeholder="Network" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(CreditCardNetwork).map((n) => (
+                      <SelectItem key={n} value={n} className="uppercase">
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Last 4 Digits (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      placeholder="4321"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={lastFourDigits}
-                      onChange={(e) => setLastFourDigits(e.target.value)}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Last 4 Digits (Optional)
+                </label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  placeholder="4321"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={lastFourDigits}
+                  onChange={(e) => setLastFourDigits(e.target.value)}
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Credit Limit *
-                    </label>
-                    <input
-                      type="number"
-                      step="1"
-                      placeholder="100000"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
-                      value={creditLimit}
-                      onChange={(e) => setCreditLimit(e.target.value)}
-                      required
-                    />
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Credit Limit *
+                </label>
+                <input
+                  type="number"
+                  step="1"
+                  placeholder="100000"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
+                  value={creditLimit}
+                  onChange={(e) => setCreditLimit(e.target.value)}
+                  required
+                />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Cycle Closing Day (1-31)
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={closingDay}
-                      onChange={(e) => setClosingDay(e.target.value)}
-                      required
-                    />
-                  </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Cycle Closing Day (1-31)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={closingDay}
+                  onChange={(e) => setClosingDay(e.target.value)}
+                  required
+                />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Payment Due Day (1-31)
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={dueDay}
-                      onChange={(e) => setDueDay(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Payment Due Day (1-31)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={dueDay}
+                  onChange={(e) => setDueDay(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Opening Outstanding (if any)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                    value={openingOutstanding}
-                    onChange={(e) => setOpeningOutstanding(e.target.value)}
-                  />
-                </div>
-              </CardContent>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Opening Outstanding (if any)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                value={openingOutstanding}
+                onChange={(e) => setOpeningOutstanding(e.target.value)}
+              />
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAddCardModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Credit Card
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowAddCardModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Credit Card
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Repayment Modal */}
-      {showRepaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Credit Card Repayment</CardTitle>
-              <CardDescription>
-                Settle credit card liability from a bank account. Reduces bank balance and card outstanding without counting as a second expense.
-              </CardDescription>
-            </CardHeader>
+      <Dialog open={showRepaymentModal} onOpenChange={setShowRepaymentModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Credit Card Repayment</DialogTitle>
+            <DialogDescription>
+              Settle credit card liability from a bank account. Reduces bank balance and card outstanding without counting as a second expense.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleRepayment}>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Target Credit Card *
-                  </label>
-                  <select
-                    value={repaymentCardId}
-                    onChange={(e) => setRepaymentCardId(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  >
-                    {cards.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.cardNickname} (Outstanding: {formatCurrency(c.currentOutstanding, 'INR')})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          <form onSubmit={handleRepayment} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Target Credit Card *
+              </label>
+              <Select
+                value={repaymentCardId || undefined}
+                onValueChange={setRepaymentCardId}
+              >
+                <SelectTrigger className="h-10 text-sm">
+                  <SelectValue placeholder="Select Credit Card *" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cards.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.cardNickname} (Outstanding: {formatCurrency(c.currentOutstanding, 'INR')})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Source Bank Account *
-                  </label>
-                  <select
-                    value={repaymentSourceAccountId}
-                    onChange={(e) => setRepaymentSourceAccountId(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  >
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.accountName} (Balance: {formatCurrency(acc.currentBalance, acc.currency)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Source Bank Account *
+              </label>
+              <Select
+                value={repaymentSourceAccountId || undefined}
+                onValueChange={setRepaymentSourceAccountId}
+              >
+                <SelectTrigger className="h-10 text-sm">
+                  <SelectValue placeholder="Select Bank Account *" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.accountName} (Balance: {formatCurrency(acc.currentBalance, acc.currency)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                {/* Full Amount Paid Checkbox */}
-                <div className="flex items-center space-x-2 pt-1 pb-1">
-                  <input
-                    type="checkbox"
-                    id="fullAmountPaidCheckbox"
-                    checked={isFullRepayment}
-                    onChange={(e) => setIsFullRepayment(e.target.checked)}
-                    className="h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer"
-                  />
-                  <label
-                    htmlFor="fullAmountPaidCheckbox"
-                    className="text-sm font-semibold leading-none cursor-pointer select-none"
-                  >
-                    Full Amount Paid
-                  </label>
-                </div>
+            {/* Full Amount Paid Checkbox */}
+            <div className="flex items-center space-x-2 pt-1 pb-1">
+              <input
+                type="checkbox"
+                id="fullAmountPaidCheckbox"
+                checked={isFullRepayment}
+                onChange={(e) => setIsFullRepayment(e.target.checked)}
+                className="h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer"
+              />
+              <label
+                htmlFor="fullAmountPaidCheckbox"
+                className="text-sm font-semibold leading-none cursor-pointer select-none"
+              >
+                Full Amount Paid
+              </label>
+            </div>
 
-                {isFullRepayment ? (
-                  <div className="p-3.5 rounded-lg border border-border/80 bg-muted/40 space-y-1">
-                    <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-                      Full Outstanding To Settle
-                    </p>
-                    <p className="text-2xl font-black text-[#CC0000]">
-                      {formatCurrency(
-                        cards.find((c) => c.id === repaymentCardId)?.currentOutstanding || 0,
-                        'INR'
-                      )}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      The full eligible outstanding balance will be automatically settled against this card.
-                    </p>
-                  </div>
-                ) : (
+            {isFullRepayment ? (
+              <div className="p-3.5 rounded-lg border border-border/80 bg-muted/40 space-y-1">
+                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                  Full Outstanding To Settle
+                </p>
+                <p className="text-2xl font-black text-[#CC0000]">
+                  {formatCurrency(
+                    cards.find((c) => c.id === repaymentCardId)?.currentOutstanding || 0,
+                    'INR'
+                  )}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  The full eligible outstanding balance will be automatically settled against this card.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Custom Repayment Amount *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
+                  value={repaymentAmount}
+                  onChange={(e) => setRepaymentAmount(e.target.value)}
+                  required={!isFullRepayment}
+                />
+              </div>
+            )}
+
+            {/* Reward Points / Cashback Redemption Toggle */}
+            <div className="pt-2 border-t border-border/60 space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="applyRedemptionCheckbox"
+                  checked={applyRedemption}
+                  onChange={(e) => setApplyRedemption(e.target.checked)}
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer"
+                />
+                <label
+                  htmlFor="applyRedemptionCheckbox"
+                  className="text-xs font-semibold leading-none cursor-pointer select-none text-foreground flex items-center gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                  Redeem Reward Points / Cashback against this Bill
+                </label>
+              </div>
+
+              {applyRedemption && (
+                <div className="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-3 animate-in fade-in duration-150">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Custom Repayment Amount *
+                      Redemption Credit Amount (₹) *
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       min="0.01"
-                      placeholder="0.00"
+                      placeholder="e.g. 750"
                       className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
-                      value={repaymentAmount}
-                      onChange={(e) => setRepaymentAmount(e.target.value)}
-                      required={!isFullRepayment}
+                      value={redemptionCredit}
+                      onChange={(e) => setRedemptionCredit(e.target.value)}
+                      required={applyRedemption}
                     />
                   </div>
-                )}
-
-                {/* Reward Points / Cashback Redemption Toggle */}
-                <div className="pt-2 border-t border-border/60 space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="applyRedemptionCheckbox"
-                      checked={applyRedemption}
-                      onChange={(e) => setApplyRedemption(e.target.checked)}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer"
-                    />
-                    <label
-                      htmlFor="applyRedemptionCheckbox"
-                      className="text-xs font-semibold leading-none cursor-pointer select-none text-foreground flex items-center gap-1.5"
-                    >
-                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                      Redeem Reward Points / Cashback against this Bill
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Redemption Source / Remarks (Optional)
                     </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. HDFC Reward Points or Cred Cashback"
+                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={redemptionNotes}
+                      onChange={(e) => setRedemptionNotes(e.target.value)}
+                    />
                   </div>
+                </div>
+              )}
+            </div>
 
+            {/* Live Settlement & Bank Deduction Breakdown */}
+            {(() => {
+              const selectedCard = cards.find((c) => c.id === repaymentCardId);
+              const previewSettled = isFullRepayment ? (selectedCard?.currentOutstanding || 0) : (parseFloat(repaymentAmount) || 0);
+              const previewRedemption = applyRedemption ? (parseFloat(redemptionCredit) || 0) : 0;
+              const previewNetBank = Math.max(0, previewSettled - previewRedemption);
+
+              return (
+                <div className="p-3.5 rounded-xl border border-border bg-muted/30 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Card Liability Settled:</span>
+                    <span className="font-mono font-bold text-foreground">
+                      {formatCurrency(previewSettled, 'INR')}
+                    </span>
+                  </div>
                   {applyRedemption && (
-                    <div className="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-3 animate-in fade-in duration-150">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Redemption Credit Amount (₹) *
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          placeholder="e.g. 750"
-                          className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
-                          value={redemptionCredit}
-                          onChange={(e) => setRedemptionCredit(e.target.value)}
-                          required={applyRedemption}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Redemption Source / Remarks (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. HDFC Reward Points or Cred Cashback"
-                          className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          value={redemptionNotes}
-                          onChange={(e) => setRedemptionNotes(e.target.value)}
-                        />
-                      </div>
+                    <div className="flex items-center justify-between text-amber-500">
+                      <span>Reward / Cashback Credit:</span>
+                      <span className="font-mono font-bold">
+                        - {formatCurrency(previewRedemption, 'INR')}
+                      </span>
                     </div>
                   )}
+                  <div className="flex items-center justify-between pt-1.5 border-t border-border/60 text-sm font-semibold">
+                    <span className="text-foreground">Actual Bank Deduction:</span>
+                    <span className="font-mono font-bold text-emerald-500">
+                      {formatCurrency(previewNetBank, 'INR')}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground pt-0.5">
+                    Only the net bank deduction is debited from your bank account. Card debt is settled by the full liability amount.
+                  </p>
                 </div>
+              );
+            })()}
 
-                {/* Live Settlement & Bank Deduction Breakdown */}
-                {(() => {
-                  const selectedCard = cards.find((c) => c.id === repaymentCardId);
-                  const previewSettled = isFullRepayment ? (selectedCard?.currentOutstanding || 0) : (parseFloat(repaymentAmount) || 0);
-                  const previewRedemption = applyRedemption ? (parseFloat(redemptionCredit) || 0) : 0;
-                  const previewNetBank = Math.max(0, previewSettled - previewRedemption);
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Notes (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Monthly bill settlement"
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={repaymentNotes}
+                onChange={(e) => setRepaymentNotes(e.target.value)}
+              />
+            </div>
 
-                  return (
-                    <div className="p-3.5 rounded-xl border border-border bg-muted/30 space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Card Liability Settled:</span>
-                        <span className="font-mono font-bold text-foreground">
-                          {formatCurrency(previewSettled, 'INR')}
-                        </span>
-                      </div>
-                      {applyRedemption && (
-                        <div className="flex items-center justify-between text-amber-500">
-                          <span>Reward / Cashback Credit:</span>
-                          <span className="font-mono font-bold">
-                            - {formatCurrency(previewRedemption, 'INR')}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between pt-1.5 border-t border-border/60 text-sm font-semibold">
-                        <span className="text-foreground">Actual Bank Deduction:</span>
-                        <span className="font-mono font-bold text-emerald-500">
-                          {formatCurrency(previewNetBank, 'INR')}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground pt-0.5">
-                        Only the net bank deduction is debited from your bank account. Card debt is settled by the full liability amount.
-                      </p>
-                    </div>
-                  );
-                })()}
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Notes (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Monthly bill settlement"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={repaymentNotes}
-                    onChange={(e) => setRepaymentNotes(e.target.value)}
-                  />
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowRepaymentModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Post Repayment
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowRepaymentModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Post Repayment
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Refund Modal */}
-      {showRefundModal && selectedCardForAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-border animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle>Record Merchant Refund</CardTitle>
-              <CardDescription>
-                Refund against {selectedCardForAction.cardNickname}. Directly reduces card outstanding and net expense.
-              </CardDescription>
-            </CardHeader>
+      <Dialog
+        open={Boolean(showRefundModal && selectedCardForAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowRefundModal(false);
+            setSelectedCardForAction(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Merchant Refund</DialogTitle>
+            <DialogDescription>
+              Refund against {selectedCardForAction?.cardNickname}. Directly reduces card outstanding and net expense.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleRefund}>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Refund Description *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Returned Item, Cancelled Flight"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={refundTitle}
-                    onChange={(e) => setRefundTitle(e.target.value)}
-                    required
-                  />
-                </div>
+          <form onSubmit={handleRefund} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Refund Description *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Returned Item, Cancelled Flight"
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={refundTitle}
+                onChange={(e) => setRefundTitle(e.target.value)}
+                required
+              />
+            </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Refund Amount *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
-                    value={refundAmount}
-                    onChange={(e) => setRefundAmount(e.target.value)}
-                    required
-                  />
-                </div>
-              </CardContent>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Refund Amount *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                required
+              />
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowRefundModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Post Refund
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowRefundModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Post Refund
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Credit Card Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl border-border animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Edit Credit Card</CardTitle>
-              <CardDescription>
-                Update card limits, cycle dates, and nickname. Outstanding liabilities are preserved.
-              </CardDescription>
-            </CardHeader>
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Credit Card</DialogTitle>
+            <DialogDescription>
+              Update card limits, cycle dates, and nickname. Outstanding liabilities are preserved.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleUpdateCard}>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Card Nickname *
-                    </label>
-                    <input
-                      type="text"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={editNickname}
-                      onChange={(e) => setEditNickname(e.target.value)}
-                      required
-                    />
-                  </div>
+          <form onSubmit={handleUpdateCard} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Card Nickname *
+                </label>
+                <input
+                  type="text"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={editNickname}
+                  onChange={(e) => setEditNickname(e.target.value)}
+                  required
+                />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Issuing Bank *
-                    </label>
-                    <input
-                      type="text"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={editBank}
-                      onChange={(e) => setEditBank(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Issuing Bank *
+                </label>
+                <input
+                  type="text"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={editBank}
+                  onChange={(e) => setEditBank(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Card Network
-                    </label>
-                    <select
-                      value={editNetwork}
-                      onChange={(e) => setEditNetwork(e.target.value as CreditCardNetwork)}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {Object.values(CreditCardNetwork).map((n) => (
-                        <option key={n} value={n}>
-                          {n}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Card Network
+                </label>
+                <Select
+                  value={editNetwork}
+                  onValueChange={(val) => setEditNetwork(val as CreditCardNetwork)}
+                >
+                  <SelectTrigger className="h-10 text-sm">
+                    <SelectValue placeholder="Card Network" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(CreditCardNetwork).map((n) => (
+                      <SelectItem key={n} value={n}>
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Last 4 Digits (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={editLastFour}
-                      onChange={(e) => setEditLastFour(e.target.value.replace(/\D/g, ''))}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Last 4 Digits (Optional)
+                </label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={editLastFour}
+                  onChange={(e) => setEditLastFour(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Total Credit Limit *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
-                      value={editLimit}
-                      onChange={(e) => setEditLimit(e.target.value)}
-                      required
-                    />
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Total Credit Limit *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono font-bold"
+                  value={editLimit}
+                  onChange={(e) => setEditLimit(e.target.value)}
+                  required
+                />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Annual Fee
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={editAnnualFee}
-                      onChange={(e) => setEditAnnualFee(e.target.value)}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Annual Fee
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={editAnnualFee}
+                  onChange={(e) => setEditAnnualFee(e.target.value)}
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Cycle Closing Day (1-31) *
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={editClosingDay}
-                      onChange={(e) => setEditClosingDay(e.target.value)}
-                      required
-                    />
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Cycle Closing Day (1-31) *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={editClosingDay}
+                  onChange={(e) => setEditClosingDay(e.target.value)}
+                  required
+                />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Payment Due Day (1-31) *
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
-                      value={editDueDay}
-                      onChange={(e) => setEditDueDay(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Payment Due Day (1-31) *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-mono"
+                  value={editDueDay}
+                  onChange={(e) => setEditDueDay(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Rewards / Notes (Optional)
-                  </label>
-                  <textarea
-                    placeholder="e.g. 5% cashback on groceries and dining..."
-                    className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={editRewards}
-                    onChange={(e) => setEditRewards(e.target.value)}
-                  />
-                </div>
-              </CardContent>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Rewards / Notes (Optional)
+              </label>
+              <textarea
+                placeholder="e.g. 5% cashback on groceries and dining..."
+                className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={editRewards}
+                onChange={(e) => setEditRewards(e.target.value)}
+              />
+            </div>
 
-              <CardFooter className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={submitting}>
-                  Save Changes
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={submitting}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
