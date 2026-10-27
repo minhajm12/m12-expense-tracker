@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { Transaction } from '../models/Transaction';
 import { BankAccount } from '../models/BankAccount';
 import { CreditCard } from '../models/CreditCard';
@@ -11,7 +12,10 @@ import {
   paginationQuerySchema,
   TransactionType,
   TransactionStatus,
+  RefundClassification,
   PaymentMethod,
+  toCents,
+  fromCents,
   safeAdd,
   safeSubtract,
   parseDateInput,
@@ -27,6 +31,11 @@ import {
   revertRecurringOccurrence,
   calculatePersonalCashInHand,
 } from '../services/financial';
+import {
+  validateRefundLimit,
+  getRefundableExpenses,
+  getExpenseRefundContext,
+} from '../services/refund';
 import { ChitFundCollection } from '../models/ChitFundCollection';
 import { ChitFundPayout } from '../models/ChitFundPayout';
 import { ChitFundAdjustment } from '../models/ChitFundAdjustment';
@@ -309,6 +318,65 @@ export const listTransactions = async (req: Request, res: Response): Promise<voi
   const total = combined.length;
   const pagedRecords = combined.slice(skip, skip + pagination.limit);
 
+  // Enrich paged records with refund context
+  const expenseIds = pagedRecords
+    .filter((r) => r.type === 'expense' && r.id && !r.isLendingBorrowing)
+    .map((r) => new mongoose.Types.ObjectId(r.id));
+
+  const linkedRefundsForPage =
+    expenseIds.length > 0
+      ? await Transaction.find({
+          userId,
+          originalExpenseId: { $in: expenseIds },
+          status: { $ne: TransactionStatus.CANCELLED },
+        })
+      : [];
+
+  const refundMapByExpense = new Map<string, number>();
+  for (const rf of linkedRefundsForPage) {
+    if (rf.originalExpenseId) {
+      const key = rf.originalExpenseId.toString();
+      refundMapByExpense.set(key, (refundMapByExpense.get(key) || 0) + toCents(rf.amount));
+    }
+  }
+
+  // Also collect original expense metadata for linked refunds in this page
+  const linkedExpenseIds = pagedRecords
+    .filter((r) => r.originalExpenseId)
+    .map((r) => new mongoose.Types.ObjectId(r.originalExpenseId));
+
+  const linkedOriginalExpenses =
+    linkedExpenseIds.length > 0
+      ? await Transaction.find({
+          _id: { $in: linkedExpenseIds },
+          userId,
+        }).select('_id title category date amount')
+      : [];
+
+  const originalExpenseMap = new Map(linkedOriginalExpenses.map((e) => [e._id.toString(), e]));
+
+  for (const item of pagedRecords) {
+    if (item.type === 'expense' && !item.isLendingBorrowing) {
+      const refCents = refundMapByExpense.get(item.id) || 0;
+      const totalRefunded = fromCents(refCents);
+      item.totalRefunded = totalRefunded;
+      item.remainingRefundable = Math.max(0, safeSubtract(item.amount, totalRefunded));
+      item.netExpense = Math.max(0, safeSubtract(item.amount, totalRefunded));
+    }
+    if (item.originalExpenseId) {
+      const orig = originalExpenseMap.get(item.originalExpenseId.toString());
+      if (orig) {
+        item.originalExpense = {
+          id: orig._id.toString(),
+          title: orig.title,
+          category: orig.category,
+          date: orig.date.toISOString(),
+          amount: orig.amount,
+        };
+      }
+    }
+  }
+
   sendSuccess(
     res,
     pagedRecords,
@@ -492,6 +560,37 @@ export const createTransaction = async (req: Request, res: Response): Promise<vo
     }
   }
 
+  // Refund and Cashback validation
+  let refundClassification = validated.refundClassification;
+  let originalExpenseId = validated.originalExpenseId
+    ? new mongoose.Types.ObjectId(validated.originalExpenseId)
+    : undefined;
+
+  if (
+    refundClassification === RefundClassification.LINKED_REFUND ||
+    refundClassification === RefundClassification.PURCHASE_CASHBACK ||
+    originalExpenseId
+  ) {
+    if (!originalExpenseId) {
+      sendError(
+        res,
+        'Original expense must be selected for linked refunds or purchase cashback',
+        400,
+        'ORIGINAL_EXPENSE_REQUIRED'
+      );
+      return;
+    }
+    // Authoritative refund limit validation
+    await validateRefundLimit(originalExpenseId, userId, validated.amount);
+    if (!refundClassification) {
+      refundClassification = RefundClassification.LINKED_REFUND;
+    }
+  } else if (validated.category === 'Refunds received') {
+    if (!refundClassification) {
+      refundClassification = RefundClassification.UNLINKED_REFUND;
+    }
+  }
+
   const transaction = await Transaction.create({
     userId,
     type: validated.type,
@@ -513,6 +612,8 @@ export const createTransaction = async (req: Request, res: Response): Promise<vo
     idempotencyKey: validated.idempotencyKey,
     isExcludedFromBudget: validated.isExcludedFromBudget || false,
     isPastRecorded,
+    originalExpenseId,
+    refundClassification,
   });
 
   // If completed and linked to a bank account, authoritatively update balance using safe math
@@ -625,6 +726,47 @@ export const updateTransaction = async (req: Request, res: Response): Promise<vo
     }
   }
 
+  // Refund updates
+  const newClassification =
+    validated.refundClassification !== undefined
+      ? validated.refundClassification
+      : transaction.refundClassification;
+  const newOriginalExpenseId =
+    validated.originalExpenseId !== undefined
+      ? validated.originalExpenseId
+        ? new mongoose.Types.ObjectId(validated.originalExpenseId)
+        : undefined
+      : transaction.originalExpenseId;
+  const newAmount = validated.amount !== undefined ? validated.amount : transaction.amount;
+
+  if (
+    newClassification === RefundClassification.LINKED_REFUND ||
+    newClassification === RefundClassification.PURCHASE_CASHBACK ||
+    newOriginalExpenseId
+  ) {
+    if (!newOriginalExpenseId) {
+      sendError(
+        res,
+        'Original expense must be selected for linked refunds or purchase cashback',
+        400,
+        'ORIGINAL_EXPENSE_REQUIRED'
+      );
+      return;
+    }
+    // Validate refund limit excluding this transaction's existing amount
+    await validateRefundLimit(newOriginalExpenseId, userId, newAmount, transaction._id);
+    transaction.originalExpenseId = newOriginalExpenseId;
+    transaction.refundClassification = newClassification || RefundClassification.LINKED_REFUND;
+  } else if (
+    validated.originalExpenseId === null ||
+    (validated.originalExpenseId === undefined && validated.refundClassification === RefundClassification.UNLINKED_REFUND)
+  ) {
+    transaction.originalExpenseId = undefined;
+    transaction.refundClassification = RefundClassification.UNLINKED_REFUND;
+  } else if (validated.refundClassification !== undefined) {
+    transaction.refundClassification = validated.refundClassification;
+  }
+
   await transaction.save();
 
   // If this transaction was linked to an InvestmentContribution, keep actualAmount and account synced!
@@ -705,6 +847,17 @@ export const deleteTransaction = async (req: Request, res: Response): Promise<vo
   const emiOccurrenceId = (transaction as any).emiOccurrenceId;
 
   await Transaction.deleteOne({ _id: transaction._id });
+
+  // If deleting an original expense, unlink any linked refunds and preserve them as unlinked refunds
+  if (transaction.type === TransactionType.EXPENSE) {
+    await Transaction.updateMany(
+      { originalExpenseId: transaction._id, userId },
+      {
+        $unset: { originalExpenseId: 1 },
+        $set: { refundClassification: RefundClassification.UNLINKED_REFUND },
+      }
+    );
+  }
 
   // Recalculate original account balance
   if (accountId) {
@@ -792,4 +945,80 @@ export const createTransfer = async (req: Request, res: Response): Promise<void>
   });
 
   sendSuccess(res, result, 'Transfer completed successfully', 201);
+};
+
+export const getRefundableCandidates = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!._id;
+  const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+  const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+  const onlyWithRemaining = req.query.onlyWithRemaining === 'true';
+  const includeExpenseId = typeof req.query.includeExpenseId === 'string' ? req.query.includeExpenseId : undefined;
+
+  const result = await getRefundableExpenses(userId, {
+    search,
+    limit,
+    page,
+    onlyWithRemaining,
+    includeExpenseId,
+  });
+
+  sendSuccess(res, result.items, undefined, 200, {
+    timestamp: new Date().toISOString(),
+    page,
+    limit,
+    total: result.total,
+    totalPages: Math.ceil(result.total / limit),
+  });
+};
+
+export const getTransactionRefundContext = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!._id;
+  const { id } = req.params;
+
+  const context = await getExpenseRefundContext(id, userId);
+  sendSuccess(res, context);
+};
+
+export const unlinkRefund = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!._id;
+  const { id } = req.params;
+
+  const tx = await Transaction.findOne({ _id: id, userId });
+  if (!tx) {
+    sendError(res, 'Refund transaction not found', 404, 'TRANSACTION_NOT_FOUND');
+    return;
+  }
+
+  tx.originalExpenseId = undefined;
+  tx.refundClassification = RefundClassification.UNLINKED_REFUND;
+  await tx.save();
+
+  sendSuccess(res, tx.toJSON(), 'Refund unlinked successfully');
+};
+
+export const linkRefund = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!._id;
+  const { id } = req.params;
+  const { originalExpenseId, refundClassification } = req.body;
+
+  if (!originalExpenseId) {
+    sendError(res, 'Target original expense ID is required', 400, 'ORIGINAL_EXPENSE_REQUIRED');
+    return;
+  }
+
+  const tx = await Transaction.findOne({ _id: id, userId });
+  if (!tx) {
+    sendError(res, 'Refund transaction not found', 404, 'TRANSACTION_NOT_FOUND');
+    return;
+  }
+
+  // Validate refund limit excluding this transaction's existing amount if already linked
+  await validateRefundLimit(originalExpenseId, userId, tx.amount, tx._id);
+
+  tx.originalExpenseId = new mongoose.Types.ObjectId(originalExpenseId);
+  tx.refundClassification = refundClassification || RefundClassification.LINKED_REFUND;
+  await tx.save();
+
+  sendSuccess(res, tx.toJSON(), 'Refund linked successfully to expense');
 };

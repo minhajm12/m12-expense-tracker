@@ -24,6 +24,7 @@ import {
   Building2,
   ExternalLink,
   X,
+  RotateCcw,
 } from 'lucide-react';
 import {
   formatCurrency,
@@ -213,6 +214,15 @@ export default function ExpensesPage() {
                 <div className="text-2xl font-bold tracking-tight text-foreground font-mono truncate">
                   {formatCurrency(data?.totalExpenses || 0)}
                 </div>
+                {Boolean(data?.linkedRefunds && data.linkedRefunds > 0) && (
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                    <span>Gross: {formatCurrency(data?.grossExpenses || 0)}</span>
+                    <span>•</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                      Refunds: -{formatCurrency(data?.linkedRefunds || 0)}
+                    </span>
+                  </div>
+                )}
                 {data?.previousMonthComparison?.changePercentage !== null &&
                   data?.previousMonthComparison?.changePercentage !== undefined && (
                     <div className="flex items-center gap-1.5 text-xs">
@@ -490,9 +500,16 @@ export default function ExpensesPage() {
                           {cat.transactionCount} txn{cat.transactionCount !== 1 ? 's' : ''}
                         </Badge>
                       </div>
-                      <span className="font-mono font-bold text-foreground shrink-0">
-                        {formatCurrency(cat.amount)}
-                      </span>
+                      <div className="text-right shrink-0">
+                        <span className="font-mono font-bold text-foreground block">
+                          {formatCurrency(cat.amount)}
+                        </span>
+                        {Boolean(cat.refundAmount && cat.refundAmount > 0) && (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">
+                            Gross: {formatCurrency(cat.grossAmount || (cat.amount + (cat.refundAmount || 0)))} • Ref: -{formatCurrency(cat.refundAmount || 0)}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Progress Bar of Category Share (Red palette) */}
@@ -556,6 +573,14 @@ export default function ExpensesPage() {
                         <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
                           {tx.category}
                         </Badge>
+                        {Boolean(tx.refundAmount && tx.refundAmount > 0) && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 px-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 font-normal"
+                          >
+                            ₹{(tx.refundAmount || 0).toLocaleString()} refunded
+                          </Badge>
+                        )}
                         {tx.isPastRecorded && (
                           <Badge
                             variant="outline"
@@ -585,8 +610,13 @@ export default function ExpensesPage() {
 
                   <div className="text-right shrink-0">
                     <span className="font-mono font-bold text-rose-600 dark:text-[#CC0000] block text-sm">
-                      -{formatCurrency(tx.amount)}
+                      -{formatCurrency(tx.refundAmount && tx.refundAmount > 0 ? (tx.netAmount ?? (tx.amount - tx.refundAmount)) : tx.amount)}
                     </span>
+                    {Boolean(tx.refundAmount && tx.refundAmount > 0) && (
+                      <span className="text-[10px] text-muted-foreground line-through block">
+                        Gross: {formatCurrency(tx.grossAmount || tx.amount)}
+                      </span>
+                    )}
                     <span className="text-[10px] text-muted-foreground uppercase">
                       {tx.paymentMethod?.replace('_', ' ')}
                     </span>
@@ -675,6 +705,55 @@ export default function ExpensesPage() {
                 <div className="p-2.5 rounded-lg border border-border bg-card">
                   <span className="text-[11px] text-muted-foreground block">Notes</span>
                   <span className="font-medium text-foreground">{viewingTransaction.notes}</span>
+                </div>
+              )}
+
+              {Boolean(viewingTransaction.refunds && viewingTransaction.refunds.length > 0) && (
+                <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-2">
+                  <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                    <RotateCcw className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>Linked Refunds ({viewingTransaction.refunds?.length || 0})</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 py-1 border-y border-border/50 text-[11px] text-center">
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Gross</span>
+                      <span className="font-mono font-bold text-foreground">
+                        {formatCurrency(viewingTransaction.grossAmount || viewingTransaction.amount)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Refunded</span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        -{formatCurrency(viewingTransaction.refundAmount || 0)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Net</span>
+                      <span className="font-mono font-bold text-[#CC0000]">
+                        {formatCurrency(viewingTransaction.netAmount || 0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    {viewingTransaction.refunds?.map((r, i) => (
+                      <div
+                        key={r.id || i}
+                        className="flex items-center justify-between p-2 rounded bg-background border border-border text-[11px]"
+                      >
+                        <div>
+                          <p className="font-medium text-foreground">{r.title || 'Refund'}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(r.date).toLocaleDateString()} • {r.paymentMethod?.replace('_', ' ')}
+                          </p>
+                        </div>
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          +₹{r.amount.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

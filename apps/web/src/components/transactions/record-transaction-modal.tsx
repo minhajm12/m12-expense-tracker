@@ -6,6 +6,8 @@ import {
   TransactionType,
   PaymentMethod,
   PaymentChannel,
+  RefundClassification,
+  RefundableExpenseItem,
   BankAccount,
   CreditCard,
   DEFAULT_INVESTMENT_CATEGORIES,
@@ -15,6 +17,7 @@ import {
 import { emitDataChange } from '@/lib/data-sync';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
@@ -40,7 +43,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { toast } from '@/components/ui/toast';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, RotateCcw, X } from 'lucide-react';
 
 interface CategoryItem {
   id: string;
@@ -76,6 +79,13 @@ export function RecordTransactionModal({
   const [txNotes, setTxNotes] = useState('');
   const [isPastRecorded, setIsPastRecorded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Refund State
+  const [refundClassification, setRefundClassification] = useState<RefundClassification>(RefundClassification.LINKED_REFUND);
+  const [selectedExpenseId, setSelectedExpenseId] = useState<string>('');
+  const [candidateExpenses, setCandidateExpenses] = useState<RefundableExpenseItem[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [candidateSearch, setCandidateSearch] = useState('');
 
   // Entities Data
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
@@ -124,13 +134,34 @@ export function RecordTransactionModal({
     }
   }, [txAccountId, txCreditCardId]);
 
+  const fetchRefundableCandidates = useCallback(async (searchQuery = '') => {
+    setLoadingCandidates(true);
+    try {
+      const url = `${getApiUrl()}/api/v1/transactions/refundable-candidates?onlyWithRemaining=true${
+        searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''
+      }`;
+      const res = await fetch(url, { credentials: 'include' });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setCandidateExpenses(json.data || []);
+      }
+    } catch {
+      // Ignored network errors
+    } finally {
+      setLoadingCandidates(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       setTxDate(formatDateToInput(new Date()));
       setIsPastRecorded(false);
       fetchDependencies();
+      if (txType === TransactionType.INCOME && txCategory === 'Refunds received') {
+        fetchRefundableCandidates(candidateSearch);
+      }
     }
-  }, [isOpen, fetchDependencies]);
+  }, [isOpen, txType, txCategory, candidateSearch, fetchDependencies, fetchRefundableCandidates]);
 
   // Handle escape key
   useEffect(() => {
@@ -151,6 +182,18 @@ export function RecordTransactionModal({
       : txType === TransactionType.INVESTMENT
       ? DEFAULT_INVESTMENT_CATEGORIES.map((c) => ({ id: c.name, name: c.name, type: 'investment' as const }))
       : [];
+
+  const isRefundTx = txType === TransactionType.INCOME && txCategory === 'Refunds received';
+  const isLinkedClassification =
+    refundClassification === RefundClassification.LINKED_REFUND ||
+    refundClassification === RefundClassification.PURCHASE_CASHBACK;
+  const selectedExpense = candidateExpenses.find((e) => e.id === selectedExpenseId);
+  const parsedTxAmount = parseFloat(txAmount) || 0;
+  const isExceedingLimit =
+    isRefundTx &&
+    isLinkedClassification &&
+    !!selectedExpense &&
+    parsedTxAmount > selectedExpense.remainingRefundable;
 
   useEffect(() => {
     if (effectiveCategories.length > 0) {
@@ -208,6 +251,19 @@ export function RecordTransactionModal({
       }
     }
 
+    if (isRefundTx) {
+      if (isLinkedClassification && !selectedExpenseId) {
+        toast.error('Please select an original expense to link this refund');
+        return;
+      }
+      if (isExceedingLimit && selectedExpense) {
+        toast.error(
+          `Refund amount exceeds remaining refundable amount (₹${selectedExpense.remainingRefundable.toLocaleString()})`
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const idempotencyKey = `tx-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -225,6 +281,13 @@ export function RecordTransactionModal({
         merchantOrRecipient: txMerchant.trim() || undefined,
         notes: txNotes.trim() || undefined,
         isPastRecorded,
+        originalExpenseId:
+          isRefundTx &&
+          (refundClassification === RefundClassification.LINKED_REFUND ||
+            refundClassification === RefundClassification.PURCHASE_CASHBACK)
+            ? selectedExpenseId || undefined
+            : undefined,
+        refundClassification: isRefundTx ? refundClassification : undefined,
         idempotencyKey,
       };
 
@@ -243,6 +306,9 @@ export function RecordTransactionModal({
         setTxAmount('');
         setTxMerchant('');
         setTxNotes('');
+        setSelectedExpenseId('');
+        setCandidateSearch('');
+        setRefundClassification(RefundClassification.LINKED_REFUND);
         setIsPastRecorded(false);
         onClose();
         emitDataChange('transactions');
@@ -375,6 +441,183 @@ export function RecordTransactionModal({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Refund & Cashback Configuration */}
+            {isRefundTx && (
+              <div className="rounded-lg border border-border bg-muted/20 p-3.5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <RotateCcw className="h-4 w-4 text-foreground" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    Refund & Cashback Offset
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Refunds and purchase cashbacks offset your original expense records so your personal income and net spending stay accurate.
+                </p>
+
+                {/* Classification */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Classification *
+                  </label>
+                  <Select
+                    value={refundClassification}
+                    onValueChange={(val) => {
+                      setRefundClassification(val as RefundClassification);
+                      if (
+                        val === RefundClassification.UNLINKED_REFUND ||
+                        val === RefundClassification.GENERAL_CASHBACK
+                      ) {
+                        setSelectedExpenseId('');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Select Classification" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={RefundClassification.LINKED_REFUND}>
+                        Linked Refund (Offsets a specific expense)
+                      </SelectItem>
+                      <SelectItem value={RefundClassification.PURCHASE_CASHBACK}>
+                        Purchase Cashback (Tied to a specific purchase)
+                      </SelectItem>
+                      <SelectItem value={RefundClassification.UNLINKED_REFUND}>
+                        Unlinked Refund (General return without tracked purchase)
+                      </SelectItem>
+                      <SelectItem value={RefundClassification.GENERAL_CASHBACK}>
+                        General Cashback (Card / bank reward)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Candidate Search & Selection */}
+                {isLinkedClassification && (
+                  <div className="space-y-2 pt-1">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                      <span>Select Original Purchase Expense *</span>
+                      {loadingCandidates && (
+                        <span className="text-[11px] text-muted-foreground animate-pulse">
+                          Loading expenses...
+                        </span>
+                      )}
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search candidate expenses by title or merchant..."
+                        value={candidateSearch}
+                        onChange={(e) => {
+                          setCandidateSearch(e.target.value);
+                          fetchRefundableCandidates(e.target.value);
+                        }}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    </div>
+
+                    {candidateExpenses.length === 0 ? (
+                      <div className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                        {loadingCandidates
+                          ? 'Searching for eligible expenses...'
+                          : 'No refundable expenses found. You can switch classification to "Unlinked Refund" if the purchase is not tracked.'}
+                      </div>
+                    ) : (
+                      <Select
+                        value={selectedExpenseId}
+                        onValueChange={(val) => {
+                          setSelectedExpenseId(val);
+                          const found = candidateExpenses.find((e) => e.id === val);
+                          if (found && (!txAmount || parseFloat(txAmount) <= 0)) {
+                            setTxAmount(found.remainingRefundable.toString());
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="-- Select original expense --" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {candidateExpenses.map((expense) => (
+                            <SelectItem key={expense.id} value={expense.id}>
+                              <div className="flex flex-col text-left py-0.5">
+                                <span className="font-medium text-foreground">
+                                  {expense.title} {expense.merchant ? `(${expense.merchant})` : ''} • ₹{expense.amount.toLocaleString()}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {new Date(expense.date).toLocaleDateString()} • {expense.category} • Max Refundable: ₹{expense.remainingRefundable.toLocaleString()}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    {/* Selected Expense Detail Card */}
+                    {selectedExpense && (
+                      <div className="rounded-md border border-border bg-card p-3 space-y-2 mt-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-xs font-bold text-foreground">{selectedExpense.title}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {new Date(selectedExpense.date).toLocaleDateString()} • {selectedExpense.category}
+                              {selectedExpense.merchant ? ` • ${selectedExpense.merchant}` : ''}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedExpenseId('')}
+                            className="text-xs text-muted-foreground hover:text-foreground underline"
+                          >
+                            Clear
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-border/50 text-[11px]">
+                          <div>
+                            <span className="text-muted-foreground block">Original Amount:</span>
+                            <span className="font-semibold text-foreground">
+                              ₹{selectedExpense.amount.toLocaleString()}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block">Already Refunded:</span>
+                            <span className="font-semibold text-foreground">
+                              ₹{selectedExpense.totalRefunded.toLocaleString()}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block">Max Refundable:</span>
+                            <span className="font-bold text-foreground">
+                              ₹{selectedExpense.remainingRefundable.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {parsedTxAmount > 0 && (
+                          <div className="pt-1 border-t border-border/50 text-[11px] flex justify-between items-center">
+                            <span className="text-muted-foreground">Projected Net Expense:</span>
+                            <span className="font-bold font-mono text-foreground">
+                              ₹{Math.max(0, selectedExpense.remainingRefundable - parsedTxAmount).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+
+                        {isExceedingLimit && (
+                          <div className="rounded bg-red-500/10 border border-red-500/30 p-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 shrink-0" />
+                            <span>
+                              Refund amount (₹{parsedTxAmount.toLocaleString()}) exceeds max remaining refundable amount (₹{selectedExpense.remainingRefundable.toLocaleString()}).
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 6 & 7. Payment Method & Channel */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -534,7 +777,7 @@ export function RecordTransactionModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={submitting}>
+            <Button type="submit" isLoading={submitting} disabled={isExceedingLimit}>
               Post Transaction
             </Button>
           </DialogFooter>

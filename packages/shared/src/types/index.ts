@@ -3,6 +3,7 @@ import {
   AccountType,
   TransactionType,
   TransactionStatus,
+  RefundClassification,
   PaymentMethod,
   PaymentChannel,
   CreditCardNetwork,
@@ -179,6 +180,11 @@ export interface Transaction {
   discountNotes?: string;
   isExcludedFromBudget?: boolean;
   isPastRecorded?: boolean;
+  originalExpenseId?: string;
+  refundClassification?: RefundClassification;
+  netExpense?: number;
+  totalRefunded?: number;
+  remainingRefundable?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -918,11 +924,27 @@ export interface MonthlyExpenseTransaction {
   merchantOrRecipient?: string;
   notes?: string;
   isPastRecorded?: boolean;
+  grossAmount?: number;
+  refundAmount?: number;
+  netAmount?: number;
+  originalExpenseId?: string;
+  refundClassification?: string;
+  refunds?: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    date: string;
+    paymentMethod?: string;
+    refundClassification?: string;
+  }>;
 }
 
 export interface MonthlyExpenseCategoryBreakdown {
   category: string;
   amount: number;
+  grossAmount?: number;
+  refundAmount?: number;
+  netAmount?: number;
   transactionCount: number;
   percentage: number;
   transactions?: MonthlyExpenseTransaction[];
@@ -932,6 +954,10 @@ export interface MonthlyExpensesReportData {
   month: string;
   monthLabel: string;
   totalExpenses: number;
+  grossExpenses?: number;
+  linkedRefunds?: number;
+  unlinkedRefunds?: number;
+  netExpenses?: number;
   transactionCount: number;
   highestCategory: {
     name: string;
@@ -996,6 +1022,7 @@ export interface MonthlyIncomeReportData {
     month: string;
     income: number;
   }>;
+  totalRefundsReceived?: number;
   transactionCount?: number;
   highestCategory?: { name: string; amount: number } | null;
   averageDailyIncome?: number;
@@ -1023,6 +1050,55 @@ export interface MonthlyIncomeReportData {
     merchantOrRecipient?: string;
     isPastRecorded?: boolean;
   }>;
+}
+
+// Refund & Cashback Types
+export interface LinkedRefundItem {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  paymentMethod: PaymentMethod | string;
+  refundClassification: RefundClassification;
+  notes?: string;
+  isPastRecorded?: boolean;
+}
+
+export interface ExpenseRefundContext {
+  originalExpenseId: string;
+  originalTitle: string;
+  originalCategory: string;
+  originalDate: string;
+  originalAmount: number;
+  totalRefunded: number;
+  remainingRefundable: number;
+  netAmount: number;
+  expense: {
+    id: string;
+    title: string;
+    category: string;
+    date: string;
+    amount: number;
+    paymentMethod: string;
+    totalRefunded: number;
+    remainingRefundable: number;
+    netExpense: number;
+    merchantOrRecipient?: string;
+  };
+  refunds: LinkedRefundItem[];
+}
+
+export interface RefundableExpenseItem {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  category: string;
+  paymentMethod: string;
+  totalRefunded: number;
+  remainingRefundable: number;
+  merchant?: string;
+  merchantOrRecipient?: string;
 }
 
 // Pass-Through Money Types

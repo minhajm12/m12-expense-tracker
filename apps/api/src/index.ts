@@ -2,6 +2,7 @@ import { app } from "./app";
 import { env } from "./config/env";
 import { connectDatabase, disconnectDatabase } from "./config/database";
 import { seedDefaultCategories } from "./models/Category";
+import { initializeLegacyRefundClassifications } from "./services/refund";
 
 const startServer = async () => {
   console.log(
@@ -14,6 +15,11 @@ const startServer = async () => {
   // Ensure all default categories (including EMI) are seeded
   await seedDefaultCategories().catch((err) => {
     console.error("⚠️ [Database] Failed to verify default categories:", err);
+  });
+
+  // Ensure legacy refund transactions have explicit classification defaults
+  await initializeLegacyRefundClassifications().catch((err) => {
+    console.error("⚠️ [Database] Failed to verify refund classifications:", err);
   });
 
   const server = app.listen(env.PORT, () => {

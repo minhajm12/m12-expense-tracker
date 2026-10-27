@@ -44,16 +44,27 @@ export async function calculateBudgetProgress(
   const expenses = await Transaction.find({
     ...query,
     type: TransactionType.EXPENSE,
-  }).select('amount');
+  }).select('_id amount');
 
-  // Get any refunds in the same category/period to offset spent
-  const refunds = await Transaction.find({
-    ...query,
-    type: TransactionType.CREDIT_CARD_REFUND,
-  }).select('amount');
+  const expenseIds = expenses.map((e) => e._id);
+
+  // Get any linked refunds to offset spent, plus any card refunds
+  const [linkedRefunds, cardRefunds] = await Promise.all([
+    Transaction.find({
+      userId,
+      originalExpenseId: { $in: expenseIds },
+      status: { $ne: TransactionStatus.CANCELLED },
+    }).select('amount'),
+    Transaction.find({
+      ...query,
+      type: TransactionType.CREDIT_CARD_REFUND,
+    }).select('amount'),
+  ]);
 
   const totalExpenseCents = expenses.reduce((sum, tx) => sum + toCents(tx.amount), 0);
-  const totalRefundCents = refunds.reduce((sum, tx) => sum + toCents(tx.amount), 0);
+  const totalRefundCents =
+    linkedRefunds.reduce((sum, tx) => sum + toCents(tx.amount), 0) +
+    cardRefunds.reduce((sum, tx) => sum + toCents(tx.amount), 0);
   const netSpentCents = Math.max(0, totalExpenseCents - totalRefundCents);
   const spentAmount = fromCents(netSpentCents);
 

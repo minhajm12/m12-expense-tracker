@@ -11,6 +11,7 @@ import { InvestmentContribution } from '../models/InvestmentContribution';
 import {
   TransactionType,
   TransactionStatus,
+  RefundClassification,
   PaymentMethod,
   EmiOccurrenceStatus,
   InvestmentStatus,
@@ -49,6 +50,7 @@ export interface MonthlyIncomeReportData {
   monthLabel: string;
   totalMonthlyIncome: number;
   allIncomeTotal: number;
+  totalRefundsReceived?: number;
   salaryIncome: number;
   freelanceIncome: number;
   otherSelectedIncome: number;
@@ -290,6 +292,25 @@ export async function getFinancialReport(
   const investmentSourceMap = new Map<string, { totalCents: number; count: number }>();
   const investmentTransactions: InvestmentReportData['transactions'] = [];
 
+  // Query linked refunds for any expenses in reportTransactions
+  const expenseIds = reportTransactions
+    .filter((tx: ITransaction) => tx.type === TransactionType.EXPENSE)
+    .map((tx: ITransaction) => tx._id);
+
+  const linkedRefunds = await Transaction.find({
+    userId,
+    originalExpenseId: { $in: expenseIds },
+    status: { $ne: TransactionStatus.CANCELLED },
+  });
+
+  const expenseRefundCentsMap = new Map<string, number>();
+  for (const r of linkedRefunds) {
+    if (r.originalExpenseId) {
+      const key = r.originalExpenseId.toString();
+      expenseRefundCentsMap.set(key, (expenseRefundCentsMap.get(key) || 0) + toCents(r.amount));
+    }
+  }
+
   for (const tx of reportTransactions) {
     const amountCents = toCents(tx.amount);
     const monthKey = new Date(tx.date).toLocaleDateString('en-US', {
@@ -304,29 +325,39 @@ export async function getFinancialReport(
     const monthData = monthMap.get(monthKey)!;
 
     if (tx.type === TransactionType.INCOME) {
-      totalIncomeCents += amountCents;
-      monthData.incomeCents += amountCents;
+      const isRefundTx =
+        tx.category === 'Refunds received' ||
+        tx.refundClassification === RefundClassification.LINKED_REFUND ||
+        tx.refundClassification === RefundClassification.UNLINKED_REFUND ||
+        tx.refundClassification === RefundClassification.PURCHASE_CASHBACK;
+      if (!isRefundTx) {
+        totalIncomeCents += amountCents;
+        monthData.incomeCents += amountCents;
+      }
     } else if (tx.type === TransactionType.EXPENSE) {
-      totalExpenseCents += amountCents;
-      monthData.expenseCents += amountCents;
+      const expRefundCents = expenseRefundCentsMap.get(tx._id.toString()) || 0;
+      const netExpenseCents = Math.max(0, amountCents - expRefundCents);
+
+      totalExpenseCents += netExpenseCents;
+      monthData.expenseCents += netExpenseCents;
 
       // Track credit card spend
       if (tx.paymentMethod === PaymentMethod.CREDIT_CARD || tx.creditCardId) {
-        creditCardSpendCents += amountCents;
+        creditCardSpendCents += netExpenseCents;
       }
 
       // Track recurring vs EMI
       if (tx.emiRuleId) {
-        emiExpenseCents += amountCents;
+        emiExpenseCents += netExpenseCents;
       } else if (tx.recurringRuleId) {
-        recurringExpenseCents += amountCents;
+        recurringExpenseCents += netExpenseCents;
       }
 
       // Category tracking for expenses
       const cat = tx.category || 'Uncategorized';
       const existing = categoryMap.get(cat) || { totalCents: 0, count: 0 };
       categoryMap.set(cat, {
-        totalCents: existing.totalCents + amountCents,
+        totalCents: existing.totalCents + netExpenseCents,
         count: existing.count + 1,
       });
 
@@ -334,7 +365,7 @@ export async function getFinancialReport(
       const method = tx.paymentMethod || 'other';
       const mExisting = methodMap.get(method) || { totalCents: 0, count: 0 };
       methodMap.set(method, {
-        totalCents: mExisting.totalCents + amountCents,
+        totalCents: mExisting.totalCents + netExpenseCents,
         count: mExisting.count + 1,
       });
 
@@ -342,7 +373,7 @@ export async function getFinancialReport(
       const channel = tx.paymentChannel || 'other';
       const cExisting = channelMap.get(channel) || { totalCents: 0, count: 0 };
       channelMap.set(channel, {
-        totalCents: cExisting.totalCents + amountCents,
+        totalCents: cExisting.totalCents + netExpenseCents,
         count: cExisting.count + 1,
       });
     } else if (tx.type === TransactionType.INVESTMENT) {
@@ -393,10 +424,12 @@ export async function getFinancialReport(
     } else if (tx.type === TransactionType.CREDIT_CARD_PAYMENT) {
       creditCardRepaymentCents += amountCents;
     } else if (tx.type === TransactionType.CREDIT_CARD_REFUND) {
-      // Refunds reduce expenses
-      totalExpenseCents = Math.max(0, totalExpenseCents - amountCents);
-      monthData.expenseCents = Math.max(0, monthData.expenseCents - amountCents);
-      creditCardSpendCents = Math.max(0, creditCardSpendCents - amountCents);
+      // Refunds reduce expenses if not already linked
+      if (!tx.originalExpenseId) {
+        totalExpenseCents = Math.max(0, totalExpenseCents - amountCents);
+        monthData.expenseCents = Math.max(0, monthData.expenseCents - amountCents);
+        creditCardSpendCents = Math.max(0, creditCardSpendCents - amountCents);
+      }
     }
   }
 
@@ -627,6 +660,7 @@ export async function getMonthlyIncomeSummary(
 
   let allIncomeTotal = 0;
   let totalMonthlyIncome = 0;
+  let totalRefundsReceived = 0;
   let salaryIncome = 0;
   let freelanceIncome = 0;
   let otherSelectedIncome = 0;
@@ -663,7 +697,17 @@ export async function getMonthlyIncomeSummary(
 
     allIncomeTotal = safeAdd(allIncomeTotal, tx.amount);
 
-    const isConfigured = configuredSet.has(cat.trim().toLowerCase());
+    const isRefundTx =
+      cat.trim().toLowerCase() === 'refunds received' ||
+      tx.refundClassification === RefundClassification.LINKED_REFUND ||
+      tx.refundClassification === RefundClassification.UNLINKED_REFUND ||
+      tx.refundClassification === RefundClassification.PURCHASE_CASHBACK;
+
+    if (isRefundTx) {
+      totalRefundsReceived = safeAdd(totalRefundsReceived, tx.amount);
+    }
+
+    const isConfigured = !isRefundTx && configuredSet.has(cat.trim().toLowerCase());
     if (isConfigured) {
       totalMonthlyIncome = safeAdd(totalMonthlyIncome, tx.amount);
       qualifyingTransactionCount += 1;
@@ -682,7 +726,8 @@ export async function getMonthlyIncomeSummary(
   // Build category breakdown
   const categoryBreakdown: MonthlyIncomeCategoryBreakdown[] = Array.from(categoryMap.entries())
     .map(([category, data]) => {
-      const isConfigured = configuredSet.has(category.trim().toLowerCase());
+      const isRefundCat = category.trim().toLowerCase() === 'refunds received';
+      const isConfigured = !isRefundCat && configuredSet.has(category.trim().toLowerCase());
       return {
         category,
         amount: data.total,
@@ -739,7 +784,12 @@ export async function getMonthlyIncomeSummary(
 
   let prevTotal = 0;
   for (const ptx of prevTransactions) {
-    if (configuredSet.has((ptx.category || '').trim().toLowerCase())) {
+    const isPrevRefund =
+      (ptx.category || '').trim().toLowerCase() === 'refunds received' ||
+      ptx.refundClassification === RefundClassification.LINKED_REFUND ||
+      ptx.refundClassification === RefundClassification.UNLINKED_REFUND ||
+      ptx.refundClassification === RefundClassification.PURCHASE_CASHBACK;
+    if (!isPrevRefund && configuredSet.has((ptx.category || '').trim().toLowerCase())) {
       prevTotal = safeAdd(prevTotal, ptx.amount);
     }
   }
@@ -778,7 +828,12 @@ export async function getMonthlyIncomeSummary(
 
     let mTotal = 0;
     for (const t of mTxList) {
-      if (configuredSet.has((t.category || '').trim().toLowerCase())) {
+      const isMRefund =
+        (t.category || '').trim().toLowerCase() === 'refunds received' ||
+        t.refundClassification === RefundClassification.LINKED_REFUND ||
+        t.refundClassification === RefundClassification.UNLINKED_REFUND ||
+        t.refundClassification === RefundClassification.PURCHASE_CASHBACK;
+      if (!isMRefund && configuredSet.has((t.category || '').trim().toLowerCase())) {
         mTotal = safeAdd(mTotal, t.amount);
       }
     }
@@ -791,6 +846,7 @@ export async function getMonthlyIncomeSummary(
     monthLabel,
     totalMonthlyIncome,
     allIncomeTotal,
+    totalRefundsReceived,
     salaryIncome,
     freelanceIncome,
     otherSelectedIncome,
@@ -850,16 +906,66 @@ export async function getMonthlyExpensesSummary(
     CreditCard.find({ userId }),
   ]);
 
+  const expenseIds = transactions
+    .filter((tx) => tx.type === TransactionType.EXPENSE)
+    .map((tx) => tx._id);
+
+  const [linkedRefundsDocs, unlinkedRefundsList] = await Promise.all([
+    Transaction.find({
+      userId,
+      originalExpenseId: { $in: expenseIds },
+      status: { $ne: TransactionStatus.CANCELLED },
+    }).sort({ date: -1 }),
+    Transaction.find({
+      userId,
+      status: TransactionStatus.COMPLETED,
+      type: TransactionType.INCOME,
+      refundClassification: RefundClassification.UNLINKED_REFUND,
+      date: { $gte: startDate, $lte: endDate },
+    }),
+  ]);
+
   const bankMap = new Map(bankAccounts.map((a) => [a._id.toString(), a.accountName]));
   const cardMap = new Map(creditCards.map((c) => [c._id.toString(), c.cardNickname]));
 
+  const refundMapByExpense = new Map<
+    string,
+    Array<{
+      id: string;
+      title: string;
+      amount: number;
+      date: string;
+      paymentMethod?: string;
+      refundClassification?: string;
+    }>
+  >();
+  const refundCentsByExpense = new Map<string, number>();
+
+  for (const ref of linkedRefundsDocs) {
+    if (ref.originalExpenseId) {
+      const expId = ref.originalExpenseId.toString();
+      const currentList = refundMapByExpense.get(expId) || [];
+      currentList.push({
+        id: ref._id.toString(),
+        title: ref.title,
+        amount: ref.amount,
+        date: ref.date.toISOString(),
+        paymentMethod: ref.paymentMethod,
+        refundClassification: ref.refundClassification,
+      });
+      refundMapByExpense.set(expId, currentList);
+      refundCentsByExpense.set(expId, (refundCentsByExpense.get(expId) || 0) + toCents(ref.amount));
+    }
+  }
+
   const categoryMap = new Map<
     string,
-    { total: number; count: number; transactions: MonthlyExpenseTransaction[] }
+    { grossTotal: number; refundTotal: number; netTotal: number; count: number; transactions: MonthlyExpenseTransaction[] }
   >();
 
-  let totalExpenseCents = 0;
-  let totalRefundCents = 0;
+  let totalGrossCents = 0;
+  let totalLinkedRefundCents = 0;
+  let totalCardRefundCents = 0;
   let transactionCount = 0;
   const formattedTransactions: MonthlyExpenseTransaction[] = [];
   const dailySpendMap = new Map<number, number>();
@@ -869,17 +975,26 @@ export async function getMonthlyExpensesSummary(
     const day = getLocalDateParts(tx.date, 'Asia/Kolkata').day;
 
     if (tx.type === TransactionType.EXPENSE) {
-      totalExpenseCents += amountCents;
+      const expenseIdStr = tx._id.toString();
+      const refList = refundMapByExpense.get(expenseIdStr) || [];
+      const refCents = refundCentsByExpense.get(expenseIdStr) || 0;
+      const netCents = Math.max(0, amountCents - refCents);
+
+      totalGrossCents += amountCents;
+      totalLinkedRefundCents += refCents;
       transactionCount += 1;
 
-      dailySpendMap.set(day, safeAdd(dailySpendMap.get(day) || 0, tx.amount));
+      // Daily spending trend reflects net spending for accuracy
+      dailySpendMap.set(day, safeAdd(dailySpendMap.get(day) || 0, fromCents(netCents)));
 
       const cat = tx.category || 'Other expense';
       if (!categoryMap.has(cat)) {
-        categoryMap.set(cat, { total: 0, count: 0, transactions: [] });
+        categoryMap.set(cat, { grossTotal: 0, refundTotal: 0, netTotal: 0, count: 0, transactions: [] });
       }
       const catEntry = categoryMap.get(cat)!;
-      catEntry.total = safeAdd(catEntry.total, tx.amount);
+      catEntry.grossTotal = safeAdd(catEntry.grossTotal, tx.amount);
+      catEntry.refundTotal = safeAdd(catEntry.refundTotal, fromCents(refCents));
+      catEntry.netTotal = safeAdd(catEntry.netTotal, fromCents(netCents));
       catEntry.count += 1;
 
       const accountName = tx.accountId
@@ -889,9 +1004,12 @@ export async function getMonthlyExpensesSummary(
         : undefined;
 
       const item: MonthlyExpenseTransaction = {
-        id: tx._id.toString(),
+        id: expenseIdStr,
         title: tx.title,
-        amount: tx.amount,
+        amount: fromCents(netCents), // Net amount
+        grossAmount: tx.amount,
+        refundAmount: fromCents(refCents),
+        netAmount: fromCents(netCents),
         date: tx.date.toISOString(),
         category: cat,
         paymentMethod: tx.paymentMethod,
@@ -900,27 +1018,38 @@ export async function getMonthlyExpensesSummary(
         merchantOrRecipient: tx.merchantOrRecipient,
         notes: tx.notes,
         isPastRecorded: Boolean((tx as any).isPastRecorded),
+        refunds: refList,
       };
 
       catEntry.transactions.push(item);
       formattedTransactions.push(item);
     } else if (tx.type === TransactionType.CREDIT_CARD_REFUND) {
-      // Refunds reduce net expense
-      totalRefundCents += amountCents;
+      if (!tx.originalExpenseId) {
+        totalCardRefundCents += amountCents;
+      }
     }
   }
 
-  const netExpenseCents = Math.max(0, totalExpenseCents - totalRefundCents);
+  const unlinkedRefundCents = unlinkedRefundsList.reduce((sum, r) => sum + toCents(r.amount), 0);
+  const totalRefundCents = totalLinkedRefundCents + totalCardRefundCents;
+  const netExpenseCents = Math.max(0, totalGrossCents - totalRefundCents);
   const totalExpenses = fromCents(netExpenseCents);
+  const grossExpenses = fromCents(totalGrossCents);
+  const linkedRefunds = fromCents(totalRefundCents);
+  const unlinkedRefunds = fromCents(unlinkedRefundCents);
+  const netExpenses = totalExpenses;
   const averageDailySpend = daysInMonth > 0 ? Math.round((totalExpenses / daysInMonth) * 100) / 100 : 0;
 
   // Build category breakdown
   const categoryBreakdown: MonthlyExpenseCategoryBreakdown[] = Array.from(categoryMap.entries())
     .map(([category, data]) => ({
       category,
-      amount: data.total,
+      amount: data.netTotal,
+      grossAmount: data.grossTotal,
+      refundAmount: data.refundTotal,
+      netAmount: data.netTotal,
       transactionCount: data.count,
-      percentage: totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0,
+      percentage: totalExpenses > 0 ? Math.round((data.netTotal / totalExpenses) * 100) : 0,
       transactions: data.transactions,
     }))
     .sort((a, b) => b.amount - a.amount);
@@ -962,17 +1091,38 @@ export async function getMonthlyExpensesSummary(
     date: { $gte: prevStart, $lte: prevEnd },
   });
 
-  let prevExpenseCents = 0;
-  let prevRefundCents = 0;
-  for (const ptx of prevTransactions) {
-    if (ptx.type === TransactionType.EXPENSE) {
-      prevExpenseCents += toCents(ptx.amount);
-    } else if (ptx.type === TransactionType.CREDIT_CARD_REFUND) {
-      prevRefundCents += toCents(ptx.amount);
+  const prevExpenseIds = prevTransactions
+    .filter((ptx) => ptx.type === TransactionType.EXPENSE)
+    .map((ptx) => ptx._id);
+
+  const prevLinkedRefunds = await Transaction.find({
+    userId,
+    originalExpenseId: { $in: prevExpenseIds },
+    status: { $ne: TransactionStatus.CANCELLED },
+  });
+
+  const prevRefundMap = new Map<string, number>();
+  for (const r of prevLinkedRefunds) {
+    if (r.originalExpenseId) {
+      const key = r.originalExpenseId.toString();
+      prevRefundMap.set(key, (prevRefundMap.get(key) || 0) + toCents(r.amount));
     }
   }
 
-  const prevTotal = fromCents(Math.max(0, prevExpenseCents - prevRefundCents));
+  let prevGrossCents = 0;
+  let prevTotalRefundCents = 0;
+  for (const ptx of prevTransactions) {
+    if (ptx.type === TransactionType.EXPENSE) {
+      const amtCents = toCents(ptx.amount);
+      const refCents = prevRefundMap.get(ptx._id.toString()) || 0;
+      prevGrossCents += amtCents;
+      prevTotalRefundCents += refCents;
+    } else if (ptx.type === TransactionType.CREDIT_CARD_REFUND && !ptx.originalExpenseId) {
+      prevTotalRefundCents += toCents(ptx.amount);
+    }
+  }
+
+  const prevTotal = fromCents(Math.max(0, prevGrossCents - prevTotalRefundCents));
   const changeAmount = safeSubtract(totalExpenses, prevTotal);
   const changePercentage =
     prevTotal > 0 ? Math.round(((totalExpenses - prevTotal) / prevTotal) * 100) : null;
@@ -980,7 +1130,11 @@ export async function getMonthlyExpensesSummary(
   return {
     month: targetMonth,
     monthLabel,
-    totalExpenses,
+    totalExpenses, // Net expenses for backward compatibility
+    grossExpenses,
+    linkedRefunds,
+    unlinkedRefunds,
+    netExpenses,
     transactionCount,
     highestCategory,
     averageDailySpend,

@@ -156,6 +156,12 @@ export default function IncomePage() {
   };
 
   const handleToggleCategory = (catName: string) => {
+    if (catName.trim().toLowerCase() === 'refunds received') {
+      toast.info(
+        'Refunds received are classified as expense offsets and cannot be counted as personal monthly income.'
+      );
+      return;
+    }
     const key = catName.trim().toLowerCase();
     setSelectedCategories((prev) => {
       const next = new Set(prev);
@@ -313,7 +319,11 @@ export default function IncomePage() {
                 <div className="text-2xl font-bold tracking-tight text-foreground font-mono truncate">
                   {formatCurrency(data?.allIncomeTotal || 0)}
                 </div>
-                <p className="text-[11px] text-muted-foreground">All cash inflows this month</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {Boolean(data?.totalRefundsReceived && data.totalRefundsReceived > 0)
+                    ? `Includes ${formatCurrency(data?.totalRefundsReceived || 0)} in refunds`
+                    : 'All cash inflows this month'}
+                </p>
               </div>
             )}
           </CardContent>
@@ -767,37 +777,50 @@ export default function IncomePage() {
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                 {availableCategories.map((cat) => {
-                  const isChecked = selectedCategories.has(cat.name.trim().toLowerCase());
+                  const isRefundCat = cat.name.trim().toLowerCase() === 'refunds received';
+                  const isChecked = !isRefundCat && selectedCategories.has(cat.name.trim().toLowerCase());
                   return (
                     <div
                       key={cat.name}
                       onClick={() => handleToggleCategory(cat.name)}
-                      className={`flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${isChecked
-                        ? 'border-emerald-500/50 border-emerald-500 text-foreground font-medium'
-                        : 'border-border bg-card hover:bg-muted/30 text-muted-foreground'
-                        }`}
+                      className={`flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${
+                        isRefundCat
+                          ? 'border-border bg-muted/10 opacity-70 cursor-not-allowed text-muted-foreground'
+                          : isChecked
+                          ? 'border-emerald-500/50 border-emerald-500 text-foreground font-medium'
+                          : 'border-border bg-card hover:bg-muted/30 text-muted-foreground'
+                      }`}
                     >
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked
-                            ? 'bg-emerald-600 border-emerald-600 text-white'
-                            : 'border-muted-foreground/40 bg-background'
-                            }`}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                            isRefundCat
+                              ? 'border-muted-foreground/30 bg-muted/40 text-muted-foreground'
+                              : isChecked
+                              ? 'bg-emerald-600 border-emerald-600 text-white'
+                              : 'border-muted-foreground/40 bg-background'
+                          }`}
                         >
                           {isChecked && <Check className="h-3 w-3" />}
                         </div>
                         <span>{cat.name}</span>
-                        {cat.isCustom && (
+                        {isRefundCat ? (
+                          <span className="text-[10px] text-muted-foreground italic">
+                            (Offsets Expenses)
+                          </span>
+                        ) : cat.isCustom ? (
                           <Badge variant="outline" className="text-[9px] py-0 px-1">
                             Custom
                           </Badge>
-                        )}
+                        ) : null}
                       </div>
-                      {isChecked && (
+                      {isChecked ? (
                         <span className="text-[11px] font-semibold text-emerald-500 dark:text-emerald-500">
                           Active
                         </span>
-                      )}
+                      ) : isRefundCat ? (
+                        <span className="text-[10px] text-muted-foreground">Excluded</span>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -808,6 +831,8 @@ export default function IncomePage() {
               <p className="font-semibold text-foreground">Rule Definition:</p>
               <p>
                 <strong>Monthly Income</strong> sums income from the selected active categories.
+                <br />
+                <strong>Refunds received</strong> are classified as expense recoveries and are automatically excluded from monthly personal income.
                 <br />
                 <strong>Total Incoming</strong> continues to reflect all valid incoming cash flow.
               </p>

@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 import {
   TransactionType,
   TransactionStatus,
+  RefundClassification,
   PaymentMethod,
   PaymentChannel,
 } from '@finora/shared';
@@ -44,6 +45,8 @@ export interface ITransaction extends Document {
   discountNotes?: string;
   isExcludedFromBudget: boolean;
   isPastRecorded?: boolean;
+  originalExpenseId?: mongoose.Types.ObjectId;
+  refundClassification?: RefundClassification;
   isUntrackedCash?: boolean;
   cashSource?: 'tracked_personal_cash' | 'untracked_cash';
   createdAt: Date;
@@ -227,6 +230,16 @@ const TransactionSchema = new Schema<ITransaction>(
       default: false,
       index: true,
     },
+    originalExpenseId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Transaction',
+      index: true,
+    },
+    refundClassification: {
+      type: String,
+      enum: Object.values(RefundClassification),
+      index: true,
+    },
     isUntrackedCash: {
       type: Boolean,
       default: false,
@@ -257,6 +270,7 @@ const TransactionSchema = new Schema<ITransaction>(
         ret.emiOccurrenceId = ret.emiOccurrenceId ? ret.emiOccurrenceId.toString() : undefined;
         ret.investmentId = ret.investmentId ? ret.investmentId.toString() : undefined;
         ret.investmentContributionId = ret.investmentContributionId ? ret.investmentContributionId.toString() : undefined;
+        ret.originalExpenseId = ret.originalExpenseId ? ret.originalExpenseId.toString() : undefined;
         ret.occurrenceKey = ret.occurrenceKey || undefined;
         delete ret._id;
         delete ret.__v;
@@ -270,6 +284,7 @@ TransactionSchema.index({ userId: 1, date: -1 });
 TransactionSchema.index({ userId: 1, accountId: 1, date: -1 });
 TransactionSchema.index({ userId: 1, category: 1, date: -1 });
 TransactionSchema.index({ userId: 1, type: 1, date: -1 });
+TransactionSchema.index({ userId: 1, originalExpenseId: 1 });
 TransactionSchema.index(
   { userId: 1, idempotencyKey: 1 },
   {

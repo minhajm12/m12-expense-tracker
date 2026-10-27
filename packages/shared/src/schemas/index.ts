@@ -4,6 +4,7 @@ import {
   AccountType,
   TransactionType,
   TransactionStatus,
+  RefundClassification,
   PaymentMethod,
   PaymentChannel,
   CreditCardNetwork,
@@ -221,6 +222,11 @@ export const baseTransactionSchema = z.object({
   discountNotes: z.string().max(500).optional(),
   isExcludedFromBudget: z.boolean().optional(),
   isPastRecorded: z.boolean().optional().default(false),
+  originalExpenseId: z
+    .string()
+    .optional()
+    .transform((val) => (!val ? undefined : val)),
+  refundClassification: z.nativeEnum(RefundClassification).optional(),
 });
 
 export const createTransactionSchema = baseTransactionSchema.refine(
@@ -238,6 +244,21 @@ export const createTransactionSchema = baseTransactionSchema.refine(
   {
     message: 'Valid bank account or credit card must be selected for the chosen payment method',
     path: ['accountId'],
+  }
+).refine(
+  (data) => {
+    // If classification is linked refund or purchase cashback, originalExpenseId is required
+    if (
+      data.refundClassification === RefundClassification.LINKED_REFUND ||
+      data.refundClassification === RefundClassification.PURCHASE_CASHBACK
+    ) {
+      return !!data.originalExpenseId;
+    }
+    return true;
+  },
+  {
+    message: 'An original expense must be selected for linked refunds and purchase cashback',
+    path: ['originalExpenseId'],
   }
 );
 

@@ -29,6 +29,13 @@ export enum TransactionStatus {
   CANCELLED = "cancelled",
 }
 
+export enum RefundClassification {
+  LINKED_REFUND = "linked_refund",
+  UNLINKED_REFUND = "unlinked_refund",
+  PURCHASE_CASHBACK = "purchase_cashback",
+  GENERAL_CASHBACK = "general_cashback",
+}
+
 export enum PaymentMethod {
   UPI = "upi",
   DEBIT_CARD = "debit_card",
