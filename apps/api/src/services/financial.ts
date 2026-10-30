@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { BankAccount } from '../models/BankAccount';
 import { Transaction } from '../models/Transaction';
 import { CreditCard } from '../models/CreditCard';
+import { CreditCardStatement } from '../models/CreditCardStatement';
 import { LendingBorrowing } from '../models/LendingBorrowing';
 import { CashAccount } from '../models/CashAccount';
 import {
@@ -12,6 +13,7 @@ import {
   AccountType,
   LendingBorrowingType,
   LendingBorrowingStatus,
+  CreditCardRepaymentMode,
   TotalCashSummary,
   safeAdd,
   safeSubtract,
@@ -19,6 +21,7 @@ import {
   toCents,
 } from '@finora/shared';
 import { AppError } from '../utils/api-response';
+import { computeCardOutstandingBreakdown, syncCardStatements } from './credit-card-cycle';
 
 import { ChitFundCollection } from '../models/ChitFundCollection';
 import { ChitFundPayout } from '../models/ChitFundPayout';
@@ -397,6 +400,7 @@ export const executeCreditCardRepayment = async (params: {
   redemptionCredit?: number;
   redemptionNotes?: string;
   isFullRepayment?: boolean;
+  repaymentMode?: CreditCardRepaymentMode;
   date: Date;
   notes?: string;
   statementId?: string;
@@ -407,11 +411,12 @@ export const executeCreditCardRepayment = async (params: {
     creditCardId,
     sourceAccountId,
     isFullRepayment,
+    repaymentMode,
     date,
     notes,
-    statementId,
     idempotencyKey,
   } = params;
+  let statementId = params.statementId;
 
   // Idempotency check
   if (idempotencyKey) {
@@ -436,14 +441,58 @@ export const executeCreditCardRepayment = async (params: {
     throw new AppError('Source bank account not found or archived', 404, 'SOURCE_ACCOUNT_NOT_FOUND');
   }
 
-  // Determine total liability settled
+  // Determine total liability settled based on repaymentMode
   let liabilitySettled = params.liabilitySettled !== undefined ? params.liabilitySettled : (params.amount ?? 0);
-  if (isFullRepayment) {
+  if (repaymentMode === CreditCardRepaymentMode.FULL_CURRENT || (isFullRepayment && !repaymentMode)) {
     if (card.currentOutstanding <= 0) {
       throw new AppError('Credit card has zero outstanding balance. No repayment is needed.', 400, 'NO_OUTSTANDING_BALANCE');
     }
     liabilitySettled = card.currentOutstanding;
+    if (!statementId) {
+      const targetStmt = await CreditCardStatement.findOne({
+        userId,
+        creditCardId: card._id,
+        remainingBalance: { $gt: 0 },
+      }).sort({ closingDate: -1 });
+      if (targetStmt) {
+        statementId = targetStmt._id.toString();
+      }
+    }
+  } else if (repaymentMode === CreditCardRepaymentMode.PREVIOUS_CYCLE) {
+    const breakdown = await computeCardOutstandingBreakdown(card, userId);
+    liabilitySettled = breakdown.previousCycleOutstanding;
+    if (liabilitySettled <= 0) {
+      throw new AppError('Previous billing cycle has zero outstanding balance.', 400, 'NO_PREVIOUS_CYCLE_OUTSTANDING');
+    }
+    if (!statementId) {
+      if (breakdown.latestStatement?.id) {
+        statementId = breakdown.latestStatement.id;
+      } else {
+        const targetStmt = await CreditCardStatement.findOne({
+          userId,
+          creditCardId: card._id,
+          remainingBalance: { $gt: 0 },
+        }).sort({ closingDate: -1 });
+        if (targetStmt) {
+          statementId = targetStmt._id.toString();
+        }
+      }
+    }
+  } else if (repaymentMode === CreditCardRepaymentMode.STATEMENT_DUE) {
+    const breakdown = await computeCardOutstandingBreakdown(card, userId);
+    const target =
+      breakdown.latestStatement && breakdown.latestStatement.remainingBalance > 0
+        ? breakdown.latestStatement.remainingBalance
+        : breakdown.previousCycleOutstanding;
+    liabilitySettled = target;
+    if (liabilitySettled <= 0) {
+      throw new AppError('Latest statement has zero due balance.', 400, 'NO_STATEMENT_DUE');
+    }
+    if (!statementId && breakdown.latestStatement?.id) {
+      statementId = breakdown.latestStatement.id;
+    }
   } else {
+    // Custom partial or standard amount
     if (liabilitySettled <= 0) {
       throw new AppError('Repayment amount must be positive', 400, 'INVALID_AMOUNT');
     }
@@ -476,11 +525,22 @@ export const executeCreditCardRepayment = async (params: {
     .filter(Boolean)
     .join(' | ');
 
+  let title = `Repayment: ${card.cardNickname}`;
+  if (repaymentMode === CreditCardRepaymentMode.FULL_CURRENT || isFullRepayment) {
+    title = `Full Repayment: ${card.cardNickname}`;
+  } else if (repaymentMode === CreditCardRepaymentMode.PREVIOUS_CYCLE) {
+    title = `Previous Cycle Repayment: ${card.cardNickname}`;
+  } else if (repaymentMode === CreditCardRepaymentMode.STATEMENT_DUE) {
+    title = `Statement Repayment: ${card.cardNickname}`;
+  } else {
+    title = `Partial Repayment: ${card.cardNickname}`;
+  }
+
   // Create Repayment Transaction
   const repaymentTx = await Transaction.create({
     userId,
     type: TransactionType.CREDIT_CARD_PAYMENT,
-    title: isFullRepayment ? `Full Repayment: ${card.cardNickname}` : `Repayment: ${card.cardNickname}`,
+    title,
     amount: actualBankPayment, // The actual bank deduction!
     liabilitySettled,
     redemptionCredit,
@@ -502,6 +562,7 @@ export const executeCreditCardRepayment = async (params: {
   // Authoritatively update bank account balance and credit card outstanding
   await recalculateAccountBalance(sourceAccount._id, userId);
   await recalculateCreditCardOutstanding(card._id, userId);
+  await syncCardStatements(card, userId);
 
   return {
     transaction: repaymentTx,
@@ -560,8 +621,9 @@ export const executeCreditCardRefund = async (params: {
     status: TransactionStatus.COMPLETED,
   });
 
-  // Authoritatively update credit card outstanding and available credit
+  // Authoritatively update credit card outstanding, available credit, and statement snapshots
   await recalculateCreditCardOutstanding(card._id, userId);
+  await syncCardStatements(card, userId);
 
   return {
     transaction: refundTx,

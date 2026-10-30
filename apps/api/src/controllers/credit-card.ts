@@ -11,6 +11,8 @@ import {
   TransactionType,
   TransactionStatus,
   StatementStatus,
+  PaymentMethod,
+  PaymentChannel,
   safeSubtract,
   safeAdd,
   parseDateInput,
@@ -20,6 +22,11 @@ import {
   executeCreditCardRepayment,
   executeCreditCardRefund,
 } from '../services/financial';
+import {
+  computeCardOutstandingBreakdown,
+  getCreditCardFullDetails,
+  calculateDueDateFromClosingDate,
+} from '../services/credit-card-cycle';
 
 export const listCreditCards = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!._id;
@@ -31,7 +38,25 @@ export const listCreditCards = async (req: Request, res: Response): Promise<void
   }
 
   const cards = await CreditCard.find(filter).sort({ createdAt: -1 });
-  sendSuccess(res, cards.map((c) => c.toJSON()));
+
+  const enriched = await Promise.all(
+    cards.map(async (c) => {
+      const breakdown = await computeCardOutstandingBreakdown(c, userId);
+      return {
+        ...c.toJSON(),
+        previousCycleOutstanding: breakdown.previousCycleOutstanding,
+        ongoingCycleOutstanding: breakdown.ongoingCycleOutstanding,
+        latestStatementAmount: breakdown.latestStatement?.statementBalance,
+        latestStatementDueDate: breakdown.latestStatement?.dueDate,
+        latestStatementRemaining: breakdown.latestStatement?.remainingBalance,
+        latestStatementStatus: breakdown.latestStatement?.status,
+        nextClosingDate: breakdown.dates.nextClosingDate?.toISOString(),
+        nextPaymentDueDate: breakdown.dates.nextDueDate?.toISOString(),
+      };
+    })
+  );
+
+  sendSuccess(res, enriched);
 };
 
 export const getCreditCardById = async (req: Request, res: Response): Promise<void> => {
@@ -44,7 +69,36 @@ export const getCreditCardById = async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  sendSuccess(res, card.toJSON());
+  const breakdown = await computeCardOutstandingBreakdown(card, userId);
+  const data = {
+    ...card.toJSON(),
+    previousCycleOutstanding: breakdown.previousCycleOutstanding,
+    ongoingCycleOutstanding: breakdown.ongoingCycleOutstanding,
+    latestStatementAmount: breakdown.latestStatement?.statementBalance,
+    latestStatementDueDate: breakdown.latestStatement?.dueDate,
+    latestStatementRemaining: breakdown.latestStatement?.remainingBalance,
+    latestStatementStatus: breakdown.latestStatement?.status,
+    nextClosingDate: breakdown.dates.nextClosingDate?.toISOString(),
+    nextPaymentDueDate: breakdown.dates.nextDueDate?.toISOString(),
+  };
+
+  sendSuccess(res, data);
+};
+
+export const getCreditCardDetails = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!._id;
+  const { id } = req.params;
+
+  try {
+    const details = await getCreditCardFullDetails(id, userId);
+    sendSuccess(res, details);
+  } catch (err: any) {
+    if (err.message && err.message.toLowerCase().includes('not found')) {
+      sendError(res, 'Credit card not found', 404, 'CARD_NOT_FOUND');
+    } else {
+      sendError(res, err.message || 'Failed to fetch credit card details', 500, 'SERVER_ERROR');
+    }
+  }
 };
 
 export const createCreditCard = async (req: Request, res: Response): Promise<void> => {
@@ -53,6 +107,7 @@ export const createCreditCard = async (req: Request, res: Response): Promise<voi
 
   const initialOutstanding = validated.openingOutstanding || 0;
   const initialAvailable = Math.max(0, safeSubtract(validated.creditLimit, initialOutstanding));
+  const openDate = validated.openingOutstandingDate ? parseDateInput(validated.openingOutstandingDate) : new Date();
 
   const card = await CreditCard.create({
     userId,
@@ -64,7 +119,7 @@ export const createCreditCard = async (req: Request, res: Response): Promise<voi
     billingCycleClosingDay: validated.billingCycleClosingDay,
     paymentDueDay: validated.paymentDueDay,
     openingOutstanding: initialOutstanding,
-    openingOutstandingDate: parseDateInput(validated.openingOutstandingDate),
+    openingOutstandingDate: openDate,
     currentOutstanding: initialOutstanding,
     availableCredit: initialAvailable,
     annualFee: validated.annualFee || 0,
@@ -73,6 +128,34 @@ export const createCreditCard = async (req: Request, res: Response): Promise<voi
     isArchived: false,
     isActive: true,
   });
+
+  // If opening outstanding is provided, record it as a past-recorded expense transaction
+  if (initialOutstanding > 0) {
+    const existingOpeningTx = await Transaction.findOne({
+      userId,
+      creditCardId: card._id,
+      isPastRecorded: true,
+      notes: 'Opening credit card outstanding balance',
+    });
+
+    if (!existingOpeningTx) {
+      await Transaction.create({
+        userId,
+        type: TransactionType.EXPENSE,
+        title: `Opening Balance: ${card.cardNickname}`,
+        amount: initialOutstanding,
+        currency: 'INR',
+        date: openDate,
+        category: 'Other expenses',
+        paymentMethod: PaymentMethod.CREDIT_CARD,
+        paymentChannel: PaymentChannel.ONLINE,
+        creditCardId: card._id,
+        isPastRecorded: true, // past-recorded: historical expense without bank deduction
+        status: TransactionStatus.COMPLETED,
+        notes: 'Opening credit card outstanding balance',
+      });
+    }
+  }
 
   sendSuccess(res, card.toJSON(), 'Credit card created successfully', 201);
 };
@@ -117,10 +200,23 @@ export const archiveCreditCard = async (req: Request, res: Response): Promise<vo
     return;
   }
 
+  // Check if there are any recorded transactions referencing this credit card
+  const txCount = await Transaction.countDocuments({ creditCardId: card._id });
+
+  if (txCount === 0) {
+    // If no transactions exist, safe to permanently delete statements and card
+    await CreditCardStatement.deleteMany({ creditCardId: card._id });
+    await CreditCard.deleteOne({ _id: card._id });
+    sendSuccess(res, { id: card._id.toString() }, 'Credit card deleted successfully');
+    return;
+  }
+
+  // If transactions exist, archive the card to preserve historical financial reports
   card.isArchived = true;
+  card.isActive = false;
   await card.save();
 
-  sendSuccess(res, card.toJSON(), 'Credit card archived successfully');
+  sendSuccess(res, card.toJSON(), 'Credit card deleted successfully');
 };
 
 export const recordRepayment = async (req: Request, res: Response): Promise<void> => {
@@ -136,6 +232,7 @@ export const recordRepayment = async (req: Request, res: Response): Promise<void
     redemptionCredit: validated.redemptionCredit,
     redemptionNotes: validated.redemptionNotes,
     isFullRepayment: validated.isFullRepayment,
+    repaymentMode: validated.repaymentMode,
     date: parseDateInput(validated.date),
     notes: validated.notes,
     statementId: validated.statementId,
@@ -221,9 +318,8 @@ export const generateStatement = async (req: Request, res: Response): Promise<vo
   periodStart.setMonth(periodStart.getMonth() - 1);
   periodStart.setDate(periodStart.getDate() + 1);
 
-  // Due date: closing day + days to due day or next month's paymentDueDay
-  const dueDate = new Date(closingDate);
-  dueDate.setDate(dueDate.getDate() + 20); // standard 20-day grace period
+  // Due date: automatically 15 calendar days after statement closing date
+  const dueDate = calculateDueDateFromClosingDate(closingDate);
 
   // Fetch transactions in this period
   const txs = await Transaction.find({

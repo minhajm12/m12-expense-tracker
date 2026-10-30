@@ -24,6 +24,10 @@ import {
   recalculateCreditCardOutstanding,
   calculatePersonalCashInHand,
 } from '../services/financial';
+import {
+  reconcileHistoricalEmiTransactions,
+  backfillAllHistoricalEmiExpenses,
+} from '../services/emi-schedule';
 import { getCycleKey } from './recurring';
 
 /**
@@ -529,6 +533,9 @@ export const createEmi = async (
 
     await EmiOccurrence.insertMany(occurrencesToInsert);
 
+    // Reconcile historical installment transactions (creates past-recorded expense transactions)
+    await reconcileHistoricalEmiTransactions(emi._id, userId);
+
     // If all installments were marked historically paid, complete the EMI and clear nextEmiDate
     const remainingUnpaidCount = occurrencesToInsert.filter(
       (o) => o.status !== EmiOccurrenceStatus.PAID && o.status !== EmiOccurrenceStatus.PAID_HISTORICAL
@@ -588,6 +595,9 @@ export const updateHistoricalInstallment = async (
       occ.notes = validatedData.notes;
     }
     await occ.save();
+
+    // Reconcile corresponding past-recorded expense transaction
+    await reconcileHistoricalEmiTransactions(emi._id, userId);
 
     res.status(200).json({
       success: true,
@@ -901,6 +911,9 @@ export const updateEmi = async (
 
     await emi.save();
 
+    // Reconcile historical installment transactions in case schedule changed
+    await reconcileHistoricalEmiTransactions(emi._id, userId);
+
     res.status(200).json({
       success: true,
       data: emi,
@@ -941,6 +954,23 @@ export const deleteEmi = async (
     res.status(200).json({
       success: true,
       message: 'EMI agreement and scheduled installments deleted successfully. Historical payment transactions have been preserved.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const backfillHistoricalEmis = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await backfillAllHistoricalEmiExpenses();
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: `Historical EMI backfill completed: ${result.totalCreated} transactions created, ${result.totalUpdated} updated.`,
     });
   } catch (err) {
     next(err);

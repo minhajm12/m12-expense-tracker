@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   listCreditCards,
   getCreditCardById,
+  getCreditCardDetails,
   createCreditCard,
   updateCreditCard,
   archiveCreditCard,
@@ -22,6 +23,7 @@ creditCardRouter.get('/', asyncHandler(listCreditCards));
 creditCardRouter.post('/', asyncHandler(createCreditCard));
 creditCardRouter.post('/repayment', asyncHandler(recordRepayment));
 creditCardRouter.get('/:id', asyncHandler(getCreditCardById));
+creditCardRouter.get('/:id/details', asyncHandler(getCreditCardDetails));
 creditCardRouter.patch('/:id', asyncHandler(updateCreditCard));
 creditCardRouter.delete('/:id', asyncHandler(archiveCreditCard));
 creditCardRouter.post('/:id/refund', asyncHandler(recordRefund));

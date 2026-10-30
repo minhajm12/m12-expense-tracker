@@ -9,6 +9,8 @@ import {
   PaymentChannel,
   EmiStatus,
   EmiOccurrenceStatus,
+  TransactionType,
+  TransactionStatus,
 } from '@finora/shared';
 import { EmiRule } from '../models/EmiRule';
 import { EmiOccurrence } from '../models/EmiOccurrence';
@@ -107,15 +109,21 @@ describe('Phase 1: EMI Historical Tracking & Detail Page Regression Tests (18 Sc
     }
   });
 
-  // 4. Verify historical paid records do not change the bank balance
-  it('4. should NOT change the bank balance or create transactions for historical paid records', async () => {
+  // 4. Verify historical paid records create past-recorded expense transactions without deducting bank balance
+  it('4. should NOT change the bank balance but create past-recorded expense transactions for historical paid records', async () => {
     const acc = await BankAccount.findById(bankAccountId);
     expect(acc?.currentBalance).toBe(initialBankBalance);
 
-    const txCount = await Transaction.countDocuments({
+    const transactions = await Transaction.find({
       emiRuleId: createdEmiId,
     });
-    expect(txCount).toBe(0);
+    expect(transactions.length).toBe(6);
+    for (const tx of transactions) {
+      expect(tx.isPastRecorded).toBe(true);
+      expect(tx.type).toBe(TransactionType.EXPENSE);
+      expect(tx.category).toBe('EMI');
+      expect(tx.amount).toBe(5000);
+    }
   });
 
   // 5. Verify the user can leave previous installments unpaid if they have not been paid
@@ -309,15 +317,20 @@ describe('Phase 1: EMI Historical Tracking & Detail Page Regression Tests (18 Sc
     expect(novOcc.transactionId).toBe(paidTxId);
   });
 
-  // 14. Verify historical installments without transactions do not display fake transaction records
-  it('14. should not have transactionId for historical paid installments', async () => {
+  // 14. Verify historical installments have linked past-recorded transaction records
+  it('14. should have linked past-recorded transactions for historical paid installments', async () => {
     const detailRes = await request(app)
       .get(`/api/v1/emi/${createdEmiId}`)
       .set('Cookie', userCookie);
 
     const histOccs = detailRes.body.data.occurrences.filter((o: any) => o.status === EmiOccurrenceStatus.PAID_HISTORICAL);
     for (const occ of histOccs) {
-      expect(occ.transactionId).toBeUndefined();
+      expect(occ.transactionId).toBeDefined();
+      const tx = await Transaction.findById(occ.transactionId);
+      expect(tx).not.toBeNull();
+      expect(tx?.amount).toBe(5000);
+      expect(tx?.isPastRecorded).toBe(true);
+      expect(tx?.status).toBe(TransactionStatus.COMPLETED);
     }
   });
 
@@ -465,5 +478,30 @@ describe('Phase 1: EMI Historical Tracking & Detail Page Regression Tests (18 Sc
     // Verify new total installments extended
     const totalOccs = await EmiOccurrence.countDocuments({ emiRuleId: createdEmiId });
     expect(totalOccs).toBe(26); // May 2026 to June 2028 = 26 months
+  });
+
+  // 19. Verify idempotent backfill endpoint
+  it('19. should idempotently backfill historical EMI transactions and keep bank balance intact', async () => {
+    const balanceBefore = (await BankAccount.findById(bankAccountId))?.currentBalance;
+
+    const backfillRes = await request(app)
+      .post('/api/v1/emi/backfill-historical')
+      .set('Cookie', userCookie);
+
+    expect(backfillRes.status).toBe(200);
+    expect(backfillRes.body.success).toBe(true);
+    expect(backfillRes.body.data.totalEmisProcessed).toBeGreaterThan(0);
+
+    // Calling it a second time should create 0 new transactions (idempotent)
+    const secondRes = await request(app)
+      .post('/api/v1/emi/backfill-historical')
+      .set('Cookie', userCookie);
+
+    expect(secondRes.status).toBe(200);
+    expect(secondRes.body.data.totalCreated).toBe(0);
+
+    // Bank balance must still be intact
+    const acc = await BankAccount.findById(bankAccountId);
+    expect(acc?.currentBalance).toBe(balanceBefore);
   });
 });

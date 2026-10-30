@@ -16,6 +16,8 @@ export interface ICreditCardStatement extends Document {
   refundsAndCredits: number;
   statementBalance: number;
   minimumAmountDue: number;
+  amountPaid: number;
+  remainingBalance: number;
   status: StatementStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -76,6 +78,14 @@ const CreditCardStatementSchema = new Schema<ICreditCardStatement>(
       default: 0,
     },
     minimumAmountDue: {
+      type: Number,
+      default: 0,
+    },
+    amountPaid: {
+      type: Number,
+      default: 0,
+    },
+    remainingBalance: {
       type: Number,
       default: 0,
     },

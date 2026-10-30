@@ -8,6 +8,7 @@ import {
   PaymentMethod,
   PaymentChannel,
   CreditCardNetwork,
+  CreditCardRepaymentMode,
   RecurringFrequency,
   LendingBorrowingType,
   LendingBorrowingStatus,
@@ -135,9 +136,10 @@ export const createCreditCardSchema = z.object({
     .number()
     .int()
     .min(1, 'Due day must be between 1 and 31')
-    .max(31, 'Due day must be between 1 and 31'),
+    .max(31, 'Due day must be between 1 and 31')
+    .optional(),
   openingOutstanding: z.number().min(0, 'Outstanding cannot be negative').default(0),
-  openingOutstandingDate: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
+  openingOutstandingDate: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)).optional(),
   annualFee: z.number().min(0).default(0),
   rewardsNotes: z.string().max(1000).optional(),
   notes: z.string().max(500).optional(),
@@ -151,6 +153,7 @@ export const creditCardRepaymentSchema = z
   .object({
     creditCardId: z.string().min(1, 'Credit card is required'),
     sourceAccountId: z.string().min(1, 'Source bank account is required'),
+    repaymentMode: z.nativeEnum(CreditCardRepaymentMode).optional(),
     amount: z.number().nonnegative().optional(),
     liabilitySettled: z.number().nonnegative().optional(),
     redemptionCredit: z.number().nonnegative().default(0).optional(),
@@ -164,10 +167,13 @@ export const creditCardRepaymentSchema = z
   .refine(
     (data) =>
       data.isFullRepayment ||
+      data.repaymentMode === CreditCardRepaymentMode.FULL_CURRENT ||
+      data.repaymentMode === CreditCardRepaymentMode.PREVIOUS_CYCLE ||
+      data.repaymentMode === CreditCardRepaymentMode.STATEMENT_DUE ||
       (data.liabilitySettled !== undefined && data.liabilitySettled > 0) ||
       (data.amount !== undefined && data.amount > 0),
     {
-      message: 'Repayment amount or liability settled must be positive when not paying in full',
+      message: 'Repayment amount or liability settled must be positive when not paying in full or using cycle mode',
       path: ['amount'],
     }
   )

@@ -9,6 +9,7 @@ import {
   deleteEmi,
   payEmi,
   updateHistoricalInstallment,
+  backfillHistoricalEmis,
 } from '../controllers/emi';
 
 export const emiRouter = Router();
@@ -17,6 +18,7 @@ emiRouter.use(authenticate);
 
 emiRouter.get('/', listEmis);
 emiRouter.post('/', createEmi);
+emiRouter.post('/backfill-historical', backfillHistoricalEmis);
 emiRouter.get('/:id', getEmiById);
 emiRouter.get('/:id/installments', getEmiInstallments);
 emiRouter.put('/:id', updateEmi);

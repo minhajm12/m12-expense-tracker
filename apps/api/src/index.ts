@@ -3,6 +3,7 @@ import { env } from "./config/env";
 import { connectDatabase, disconnectDatabase } from "./config/database";
 import { seedDefaultCategories } from "./models/Category";
 import { initializeLegacyRefundClassifications } from "./services/refund";
+import { backfillAllHistoricalEmiExpenses } from "./services/emi-schedule";
 
 const startServer = async () => {
   console.log(
@@ -20,6 +21,11 @@ const startServer = async () => {
   // Ensure legacy refund transactions have explicit classification defaults
   await initializeLegacyRefundClassifications().catch((err) => {
     console.error("⚠️ [Database] Failed to verify refund classifications:", err);
+  });
+
+  // Ensure historical EMI installments have past-recorded expense transactions
+  await backfillAllHistoricalEmiExpenses().catch((err) => {
+    console.error("⚠️ [Database] Failed to backfill historical EMI transactions:", err);
   });
 
   const server = app.listen(env.PORT, () => {

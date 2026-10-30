@@ -72,6 +72,13 @@ export enum StatementStatus {
   OVERDUE = "overdue",
 }
 
+export enum CreditCardRepaymentMode {
+  FULL_CURRENT = "full_current",
+  PREVIOUS_CYCLE = "previous_cycle",
+  STATEMENT_DUE = "statement_due",
+  CUSTOM_PARTIAL = "custom_partial",
+}
+
 export enum RecurringFrequency {
   WEEKLY = "weekly",
   MONTHLY = "monthly",

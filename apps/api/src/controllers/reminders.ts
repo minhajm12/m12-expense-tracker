@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { CreditCard } from '../models/CreditCard';
 import { RecurringTransaction } from '../models/RecurringTransaction';
 import { getUserBudgetsWithProgress } from '../services/budget';
+import { calculateCardCycleDates } from '../services/credit-card-cycle';
 
 export interface ReminderItem {
   id: string;
@@ -30,7 +31,10 @@ export const getReminders = async (
     const currentDay = today.getDate();
 
     for (const card of cards) {
-      const diff = card.paymentDueDay - currentDay;
+      const cycleDates = calculateCardCycleDates(card.billingCycleClosingDay, card.paymentDueDay, today);
+      const targetDueDate = cycleDates.lastDueDate;
+      const msDiff = targetDueDate.getTime() - today.getTime();
+      const diff = Math.ceil(msDiff / (1000 * 60 * 60 * 24));
       if (diff >= 0 && diff <= 7) {
         reminders.push({
           id: `card-${card._id}`,

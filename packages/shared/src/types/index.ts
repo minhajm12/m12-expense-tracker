@@ -8,6 +8,7 @@ import {
   PaymentChannel,
   CreditCardNetwork,
   StatementStatus,
+  CreditCardRepaymentMode,
   RecurringFrequency,
   LendingBorrowingType,
   LendingBorrowingStatus,
@@ -129,6 +130,14 @@ export interface CreditCard {
   isActive: boolean;
   isArchived: boolean;
   notes?: string;
+  previousCycleOutstanding?: number;
+  ongoingCycleOutstanding?: number;
+  latestStatementAmount?: number;
+  latestStatementDueDate?: string;
+  latestStatementRemaining?: number;
+  latestStatementStatus?: StatementStatus;
+  nextClosingDate?: string;
+  nextPaymentDueDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -204,9 +213,46 @@ export interface CreditCardStatement {
   refundsAndCredits: number;
   statementBalance: number;
   minimumAmountDue: number;
+  amountPaid?: number;
+  remainingBalance?: number;
   status: StatementStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreditCardCycleInfo {
+  cycleId: string;
+  cycleLabel: string;
+  periodStart: string;
+  periodEnd: string;
+  closingDate: string;
+  dueDate?: string;
+  isCurrentCycle: boolean;
+  statementId?: string;
+  statementAmount?: number;
+  amountPaid?: number;
+  remainingDue?: number;
+  status?: StatementStatus;
+  transactions: Transaction[];
+}
+
+export interface CreditCardDetailResponse {
+  card: CreditCard;
+  totalOutstanding: number;
+  previousCycleOutstanding: number;
+  ongoingCycleOutstanding: number;
+  availableCredit: number;
+  creditLimit: number;
+  utilization: number;
+  latestStatement?: CreditCardStatement;
+  nextPaymentDue?: {
+    amount: number;
+    dueDate: string;
+    isOverdue: boolean;
+  };
+  cycles: CreditCardCycleInfo[];
+  statements: CreditCardStatement[];
+  recentPayments: Transaction[];
 }
 
 export interface CreditCardRepayment {

@@ -10,7 +10,7 @@ export interface ICreditCard extends Document {
   lastFourDigits?: string;
   creditLimit: number;
   billingCycleClosingDay: number;
-  paymentDueDay: number;
+  paymentDueDay?: number;
   openingOutstanding: number;
   openingOutstandingDate: Date;
   currentOutstanding: number;
@@ -67,7 +67,7 @@ const CreditCardSchema = new Schema<ICreditCard>(
     },
     paymentDueDay: {
       type: Number,
-      required: true,
+      required: false,
       min: 1,
       max: 31,
     },
